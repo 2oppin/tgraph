@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Demo</title>
+    <script src="../graph.js"></script>
+
+    <style>
+        .graph, .graph svg {
+            width: 100%;
+            height: 200px;
+        }
+    </style>
+</head>
+<body>
+<svg></svg>
+    <div id="g0" class="graph"><button id="g0b">o</button></div>
+    <div id="g1" class="graph"><button id="g1b">o</button></div>
+    <div id="g2" class="graph"><button id="g2b">o</button></div>
+    <div id="g3" class="graph"><button id="g3b">o</button></div>
+    <div id="g4" class="graph"><button id="g4b">o</button></div>
+    <script type="text/javascript" src="chart_data.json"></script>
+    <script>
+        loadJSON('chart_data.json', (data) => {
+            data.map((d, i) => {
+                let t = 0,
+                    g = new TGraph(document.getElementById("g" + i), d);
+                document.getElementById("g" + i + "b").addEventListener('click', () => {
+                    t = !t;
+                    g.show(50,t ? 100 : 1000);
+                })
+            })
+        });
+
+        function loadJSON(file, callback) {
+            let xobj = new XMLHttpRequest();
+            xobj.overrideMimeType("application/json");
+            xobj.open('GET', file, true);
+            xobj.onreadystatechange = () => {
+                if (xobj.readyState === 4 && xobj.status === 200)
+                    callback(JSON.parse(xobj.responseText));
+            };
+            xobj.send(null);
+        }
+    </script>
+</body>
+</html>
