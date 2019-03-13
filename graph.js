@@ -35,10 +35,6 @@ class TGraph {
         this._svg = _nes('svg');
         this._svg.setAttribute('height', this._height);
         this._el.appendChild(this._svg);
-        this._mainGraph = _nes('g');
-        this._mainGraph.style['transition'] = '0.5s';
-        this._mainGraph.style['transform'] = "translateX("+this._awidth+"px)";
-        this._svg.appendChild(this._mainGraph);
 
         this._previewGraph = _nes('g');
         // this._previewGraph.style['transform'] = "translateX("+this._awidth+"px)";
@@ -55,12 +51,17 @@ class TGraph {
         this._yLabels = _nes('g');
         this._svg.appendChild(this._yLabels);
 
+        this._mainGraph = _nes('g');
+        this._mainGraph.style['transition'] = '0.5s';
+        this._mainGraph.style['transform'] = "translateX("+this._awidth+"px)";
+        this._svg.appendChild(this._mainGraph);
     }
 
     draw() {
         let lns = "";
         this._series.lines().map(l => lns += l.toSvg());
         this._mainGraph.innerHTML = lns;
+        this._mainGraph.childNodes.forEach(e => e.style['stroke-width'] = 2);
         this._previewGraph.style['transform'] = "scaleY("+(+this._pheight/this._height)+")";
         this._previewGraph.innerHTML = lns;
         this._xLabels.innerHTML = "";
@@ -85,6 +86,7 @@ class TSeries {
     _labelsFormat = 'timestamp';
     _labels = [];
     _lines = [];
+    _zoom = 1;
     constructor(g, data = {}) {
         this._graph = g;
         if (!TSeries.validateData(data)) return;
@@ -93,13 +95,20 @@ class TSeries {
 
     xLabels() {
         let g = _nes('g');
-        g.innerHTML = `<rect x="0" y="0" width="${this._graph._awidth}" height="${this._graph._height}" style="fill:#ccf;"/>`
+        g.innerHTML = '';
+        for (let i=this._graph._height; i >=0; i -= 50) {
+            g.innerHTML += `<line x1="0" y1="${i}" x2="${this._graph._width}" y2="${i}" style="stroke:#ddd;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed />`;
+        }
+        let z = this._lines[0]._zoom;
+        for (let i=this._graph._height - this._graph._height%50, j=0; i >=0; i -= 50, j++) {
+            g.innerHTML += `<text x="10" y="${i-10}">${Math.round(j*50*z)}</text>`;
+        }
         return g;
     }
 
     yLabels() {
         let g = _nes('g');
-        g.innerHTML = `<rect x="0" y="${this._graph._height - 50}" width="${this._graph._width + this._graph._awidth}" height="50" style="fill:#ffc;"/>`
+        g.innerHTML = `<rect x="0" y="${this._graph._height - 50}" width="${this._graph._width + this._graph._awidth}" height="50" style="fill:#ffc;"/>`;
         return g;
     }
 
@@ -155,8 +164,8 @@ class TLine {
         this._zoom = z;
     }
 
-    toSvg(step) {
-        this._step = step || (this._graph._width / this._data.length);
+    toSvg() {
+        this._step = this._graph._width / this._data.length;
         let p = [];
         for (let i=1; i < this._data.length; i++) p.push(this._step*(i-1) + "," + this._data[i-1]);
         return `<polyline vector-effect="non-scaling-stroke" points="` + p.join(' ') + `" style="fill:none;stroke:${this._color};stroke-width:1" />`
