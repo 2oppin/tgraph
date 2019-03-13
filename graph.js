@@ -27,6 +27,10 @@ class TGraph {
         this.draw();
     }
 
+    get _mgHeight() {
+        return this._height - this._aheight;
+    }
+
     init() {
         this._svg = _nes('svg');
         this._svg.setAttribute('height', this._height);
@@ -142,12 +146,12 @@ class TLine {
         this._graph = g;
         this._name = n; this._label = l; this._color = c;
         [this._min, this._max] = _mm(d);
-        this._zoom = z || this._max / this._graph._height;
-        this._data = d.map(e => this._graph._height - e / this._zoom);
+        this._zoom = z || this._max / this._graph._mgHeight;
+        this._data = d.map(e => this._graph._mgHeight - e / this._zoom);
     }
 
     zoom(z) {
-        this._data = d.map(e => this._graph._height - e * this._zoom / z);
+        this._data = d.map(e => this._graph._mgHeight - e * this._zoom / z);
         this._zoom = z;
     }
 
