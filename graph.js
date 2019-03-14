@@ -14,10 +14,13 @@ class TGraph {
     _pheight = 100;
     _aheight = 30;
     _series = null;
+    _window = 100;
     constructor(el, data, preview = true) {
         this._id = Math.round(Math.random() * 1000) + (new Date()).getTime();
         this._el = el;
         let sz = this._el.getBoundingClientRect();
+        if (!sz.width) return;
+
         this._width = sz.width;
         this._height = sz.height - this._pheight;
         this.init();
@@ -37,13 +40,29 @@ class TGraph {
 
         this._previewGraph = _nes('g');
         let d = _ne('div'), s = _nes('svg');
+        d.style['position'] = 'relative';
         d.style['height'] = this._pheight + 'px';
         // d.style['margin-top'] = `10px`;
         d.style['padding-left'] = `10px`;
-        d.style['background-color'] = 'rgb(244, 247, 249)';
         s.appendChild(this._previewGraph);
         d.appendChild(s);
         this._el.appendChild(d);
+        let overlayL = d.cloneNode();
+        overlayL.style['position'] = 'absolute';
+        overlayL.style['top'] = '0';
+        overlayL.style['left'] = (10 + this._window) + 'px';
+        overlayL.style['height'] = this._pheight + 'px';
+        overlayL.style['width'] = (this._width - 20 - this._window) + 'px';
+        overlayL.style['background-color'] = 'rgba(192, 194, 195, 0.5)';
+        d.appendChild(overlayL);
+        let overlayR = overlayL.cloneNode();
+        overlayR.style['left'] = (10) + 'px';
+        overlayR.style['width'] = 0;
+        d.appendChild(overlayR);
+        let overlayWnd = overlayR.cloneNode();
+        overlayWnd.style['width'] = (this._width - 20 - this._window) + 'px';
+        overlayWnd.style['background-color'] = 'rgba(192, 194, 195, 0.2)';
+        d.appendChild(overlayWnd);
 
         this._xLabels = _nes('g');
         this._svg.appendChild(this._xLabels);
