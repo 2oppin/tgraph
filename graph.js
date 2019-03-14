@@ -12,14 +12,13 @@ class TGraph {
     _yLabels = null;
     _xLabels = null;
     _pheight = 100;
-    _aheight = 50;
-    _awidth = 80;
+    _aheight = 30;
     _series = null;
     constructor(el, data, preview = true) {
         this._id = Math.round(Math.random() * 1000) + (new Date()).getTime();
         this._el = el;
         let sz = this._el.getBoundingClientRect();
-        this._width = sz.width - this._awidth;
+        this._width = sz.width;
         this._height = sz.height - this._pheight;
         this.init();
         this._series = new TSeries(this, data);
@@ -37,11 +36,11 @@ class TGraph {
         this._el.appendChild(this._svg);
 
         this._previewGraph = _nes('g');
-        // this._previewGraph.style['transform'] = "translateX("+this._awidth+"px)";
         let d = _ne('div'), s = _nes('svg');
         d.style['height'] = this._pheight + 'px';
-        d.style['padding-left'] = `${this._awidth}px`;
-        d.style['background-color'] = '#cfc';
+        // d.style['margin-top'] = `10px`;
+        d.style['padding-left'] = `10px`;
+        d.style['background-color'] = 'rgb(244, 247, 249)';
         s.appendChild(this._previewGraph);
         d.appendChild(s);
         this._el.appendChild(d);
@@ -53,7 +52,6 @@ class TGraph {
 
         this._mainGraph = _nes('g');
         this._mainGraph.style['transition'] = '0.5s';
-        this._mainGraph.style['transform'] = "translateX("+this._awidth+"px)";
         this._svg.appendChild(this._mainGraph);
     }
 
@@ -78,12 +76,12 @@ class TGraph {
             p0 = st * x1,
             p1 = (x2 ? Math.min(x2, ln) : ln) * st,
             sc = this._width / ((p1-p0) || 1);
-        this._mainGraph.style['transform'] = "translateX("+(this._awidth - p0*sc)+"px) scaleX("+sc+")";
+        this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
     }
 }
 class TSeries {
     _graph = null;
-    _labelsFormat = 'timestamp';
+    _labelsFormat = 'timestamp:day';
     _labels = [];
     _lines = [];
     _zoom = 1;
@@ -93,22 +91,35 @@ class TSeries {
         this.load(data);
     };
 
-    xLabels() {
+    yLabels() {
         let g = _nes('g');
         g.innerHTML = '';
-        for (let i=this._graph._height; i >=0; i -= 50) {
+        for (let i=this._graph._mgHeight; i >=0; i -= 50) {
             g.innerHTML += `<line x1="0" y1="${i}" x2="${this._graph._width}" y2="${i}" style="stroke:#ddd;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed />`;
         }
         let z = this._lines[0]._zoom;
-        for (let i=this._graph._height - this._graph._height%50, j=0; i >=0; i -= 50, j++) {
-            g.innerHTML += `<text x="10" y="${i-10}">${Math.round(j*50*z)}</text>`;
+        for (let i=this._graph._mgHeight - 1, j=0; i >=0; i -= 50, j++) {
+            g.innerHTML += `<text x="10" y="${i-10}" style="stroke: #888;stroke-width: 0.1;font-size: 14px;opacity: 0.6;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${Math.round(j*50*z)}</text>`;
         }
         return g;
     }
 
-    yLabels() {
-        let g = _nes('g');
-        g.innerHTML = `<rect x="0" y="${this._graph._height - 50}" width="${this._graph._width + this._graph._awidth}" height="50" style="fill:#ffc;"/>`;
+    xLabels() {
+        let lw = 80,
+            off = 30,
+            g = _nes('g'),
+            formatter = new Intl.DateTimeFormat("en", {
+                month: "short",
+                day: "numeric"
+            });
+        g.innerHTML = '';
+        for (let x=0; x<this._graph._width - 80; x+= lw) {
+            let lbl = this._labels[Math.floor(x * this._labels.length / this._graph._width)];
+            if (this._labelsFormat === 'timestamp:day') {
+                lbl = formatter.format((new Date(+lbl)));
+            }
+            g.innerHTML += `<text x="${x+off}" y="${this._graph._height - 10}" style="stroke: #888;stroke-width: 0.1;font-size: 14px;opacity: 0.6;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
+        }
         return g;
     }
 
