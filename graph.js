@@ -14,6 +14,10 @@ class TGraph {
     _pheight = 100;
     _aheight = 30;
     _series = null;
+    _wndL = null;
+    _wndR = null;
+    _wnd = null;
+    _wndX = 0;
     _window = 100;
     constructor(el, data, preview = true) {
         this._id = Math.round(Math.random() * 1000) + (new Date()).getTime();
@@ -47,22 +51,22 @@ class TGraph {
         s.appendChild(this._previewGraph);
         d.appendChild(s);
         this._el.appendChild(d);
-        let overlayL = d.cloneNode();
-        overlayL.style['position'] = 'absolute';
-        overlayL.style['top'] = '0';
-        overlayL.style['left'] = (10 + this._window) + 'px';
-        overlayL.style['height'] = this._pheight + 'px';
-        overlayL.style['width'] = (this._width - 20 - this._window) + 'px';
-        overlayL.style['background-color'] = 'rgba(192, 194, 195, 0.5)';
-        d.appendChild(overlayL);
-        let overlayR = overlayL.cloneNode();
-        overlayR.style['left'] = (10) + 'px';
-        overlayR.style['width'] = 0;
-        d.appendChild(overlayR);
-        let overlayWnd = overlayR.cloneNode();
-        overlayWnd.style['width'] = (this._width - 20 - this._window) + 'px';
-        overlayWnd.style['background-color'] = 'rgba(192, 194, 195, 0.2)';
-        d.appendChild(overlayWnd);
+        this._wndL = d.cloneNode();
+        this._wndL.style['position'] = 'absolute';
+        this._wndL.style['top'] = '0';
+        this._wndL.style['height'] = this._pheight + 'px';
+        this._wndL.style['left'] = (10 + this._window) + 'px';
+        this._wndL.style['width'] = (this._width - 20 - this._window) + 'px';
+        this._wndL.style['background-color'] = 'rgba(192, 194, 195, 0.5)';
+        d.appendChild(this._wndL);
+        this._wndR = this._wndL.cloneNode();
+        this._wndR.style['left'] = (10) + 'px';
+        this._wndR.style['width'] = 0;
+        d.appendChild(this._wndR);
+        this._wnd = this._wndR.cloneNode();
+        this._wnd.style['width'] = (this._width - 20 - this._window) + 'px';
+        this._wnd.style['background-color'] = 'rgba(192, 194, 195, 0.2)';
+        d.appendChild(this._wnd);
 
         this._xLabels = _nes('g');
         this._svg.appendChild(this._xLabels);
@@ -72,6 +76,19 @@ class TGraph {
         this._mainGraph = _nes('g');
         this._mainGraph.style['transition'] = '0.5s';
         this._svg.appendChild(this._mainGraph);
+        this.wndUpd(30, 100);
+    }
+
+    wndUpd(x0, x1) {
+        let w = x1 - x0;
+        this._wndR.style['left'] = (10) + 'px';
+        this._wndR.style['width'] = x0 + 'px';
+
+        this._wnd.style['left'] = (10 + x0) + 'px';
+        this._wnd.style['width'] = w + 'px';
+
+        this._wndL.style['left'] = (10 + x1) + 'px';
+        this._wndL.style['width'] = (this._width - 20 - x1) + 'px';
     }
 
     draw() {
