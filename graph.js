@@ -18,7 +18,10 @@ class TGraph {
     _wndR = null;
     _wnd = null;
     _wndX = 0;
-    _window = 100;
+    _wndW = 100;
+    _wndOnMove = false;
+    _wndResizeR = false;
+    _wndResizeL = false;
     constructor(el, data, preview = true) {
         this._id = Math.round(Math.random() * 1000) + (new Date()).getTime();
         this._el = el;
@@ -55,17 +58,23 @@ class TGraph {
         this._wndL.style['position'] = 'absolute';
         this._wndL.style['top'] = '0';
         this._wndL.style['height'] = this._pheight + 'px';
-        this._wndL.style['left'] = (10 + this._window) + 'px';
-        this._wndL.style['width'] = (this._width - 20 - this._window) + 'px';
-        this._wndL.style['background-color'] = 'rgba(192, 194, 195, 0.5)';
+        this._wndL.style['left'] = (10 + this._wndW) + 'px';
+        this._wndL.style['width'] = (this._width - 20 - this._wndW) + 'px';
+        this._wndL.style['background-color'] = 'rgba(210, 217, 220, 0.55)';
         d.appendChild(this._wndL);
         this._wndR = this._wndL.cloneNode();
         this._wndR.style['left'] = (10) + 'px';
         this._wndR.style['width'] = 0;
         d.appendChild(this._wndR);
         this._wnd = this._wndR.cloneNode();
+        this._wnd.style['cursor'] = 'move';
+        this._wnd.style['height'] = (this._pheight -6) + 'px';
         this._wnd.style['width'] = (this._width - 20 - this._window) + 'px';
-        this._wnd.style['background-color'] = 'rgba(192, 194, 195, 0.2)';
+        this._wnd.style['border'] = 'solid 3px rgba(180, 190, 195, 0.51)';
+        this._wnd.style['border-left-width'] = '5px';
+        this._wnd.style['border-right-width'] = '5px';
+        this._wnd.style['border-radius'] = '3px';
+        this._wnd.style['background-color'] = 'rgba(227, 237, 243, 0.21)';
         d.appendChild(this._wnd);
 
         this._xLabels = _nes('g');
@@ -76,19 +85,91 @@ class TGraph {
         this._mainGraph = _nes('g');
         this._mainGraph.style['transition'] = '0.5s';
         this._svg.appendChild(this._mainGraph);
-        this.wndUpd(30, 100);
+
+        this._wndInitEvents();
     }
 
-    wndUpd(x0, x1) {
-        let w = x1 - x0;
-        this._wndR.style['left'] = (10) + 'px';
-        this._wndR.style['width'] = x0 + 'px';
+    _wndInitEvents()
+    {
+        let oldX1 = this._wndX0 + this._wndW, xOffset = 0, yOffset = 0, currentX, currentY, initialX, initialY,
+            ca = () => {
+                initialX = currentX;
+                initialY = currentY;
+                oldX1 = this._wndX0 + this._wndW;
+                this._wndOnMove = this._wndResizeL = this._wndResizeR = false;
+            },
+            da = (e) => {
+                ca();
+                oldX1 = this._wndX0 + this._wndW;
+                if (e.type === "touchstart") {
+                    initialX = e.touches[0].clientX - xOffset;
+                    initialY = e.touches[0].clientY - yOffset;
+                } else {
+                    initialX = e.clientX - xOffset;
+                    initialY = e.clientY - yOffset;
+                }
+                if (e.offsetX < 0) {
+                    this._wndResizeL = true;
+                } else if (e.offsetX > e.target.clientWidth)
+                    this._wndResizeR = true;
+                else {
+                    this._wndOnMove = true;
+                }
+            };
+        this._wnd.addEventListener('mousedown', da);
+        this._wnd.addEventListener('touchstart', da);
 
-        this._wnd.style['left'] = (10 + x0) + 'px';
-        this._wnd.style['width'] = w + 'px';
+        this._wnd.addEventListener('mouseup', ca);
+        this._wnd.addEventListener('mouseout', ca);
+        this._wnd.addEventListener('touchend', ca);
+        this._wnd.addEventListener('touchcancel', ca);
+
+        let mme = (e) => {
+            if (e.offsetX < 0 || e.offsetX > e.target.clientWidth)
+                this._wnd.style['cursor'] = 'col-resize';
+            else
+                this._wnd.style['cursor'] = 'move';
+                e.preventDefault();
+            if (this._wndOnMove || this._wndResizeR || this._wndResizeL) {
+                if (e.type === "touchmove") {
+                    currentX = e.touches[0].clientX - initialX;
+                    currentY = e.touches[0].clientY - initialY;
+                } else {
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                }
+
+                xOffset = currentX;
+                yOffset = currentY;
+                if (this._wndOnMove) {
+                    this._wndX = xOffset;// e.movementX;
+                } else if (this._wndResizeR) {
+                    this._wndW = xOffset;// e.movementX;
+                } else if (this._wndResizeL) {
+                    // xOffset += initialX;
+                    this._wndW += (this._wndX - currentX);
+                    this._wndX = currentX;// e.movementX;
+                }
+                this.wndUpd();
+            }
+        };
+        this._wnd.addEventListener('mousemove', mme);
+        this._wnd.addEventListener('touchmove', mme);
+    }
+
+    wndUpd() {
+        //this._wndX = x0;
+        //this._wndW = x1 - x0;
+        let x1 = this._wndX + this._wndW;
+        this._wndR.style['left'] = (10) + 'px';
+        this._wndR.style['width'] = this._wndX + 'px';
+
+        this._wnd.style['left'] = (15 + this._wndX) + 'px';
+        this._wnd.style['width'] = (this._wndW - 20) + 'px';
 
         this._wndL.style['left'] = (10 + x1) + 'px';
         this._wndL.style['width'] = (this._width - 20 - x1) + 'px';
+        this.showW(this._wndX, this._wndW);
     }
 
     draw() {
@@ -102,6 +183,17 @@ class TGraph {
         this._xLabels.appendChild(this._series.xLabels());
         this._yLabels.innerHTML = "";
         this._yLabels.appendChild(this._series.yLabels());
+        this.wndUpd(30, 100);
+    }
+
+    showW(x0, w) {
+        let l = this._series.lines()[0],
+            ln = l._data.length,
+            st = l._step,
+            z = ln / this._width;
+        let x1 = x0 * z,
+            x2 = (x0 + w) * z;
+        this.show(x1, x2);
     }
 
     show(x1, x2) {
