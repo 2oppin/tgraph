@@ -17,11 +17,12 @@ class TGraph {
     _wndL = null;
     _wndR = null;
     _wnd = null;
+    _wndBw = 10;
     _wndX = 0;
     _wndW = 100;
-    _wndOnMove = false;
-    _wndResizeR = false;
-    _wndResizeL = false;
+
+    _wndAct = false; // false || [move, left, right]
+
     constructor(el, data, preview = true) {
         this._id = Math.round(Math.random() * 1000) + (new Date()).getTime();
         this._el = el;
@@ -50,29 +51,30 @@ class TGraph {
         d.style['position'] = 'relative';
         d.style['height'] = this._pheight + 'px';
         // d.style['margin-top'] = `10px`;
-        d.style['padding-left'] = `10px`;
+        // d.style['padding-left'] = `25px`;
         s.appendChild(this._previewGraph);
         d.appendChild(s);
         this._el.appendChild(d);
         this._wndL = d.cloneNode();
+        this._wndL.style['padding-left'] = 0;
         this._wndL.style['position'] = 'absolute';
         this._wndL.style['top'] = '0';
         this._wndL.style['height'] = this._pheight + 'px';
-        this._wndL.style['left'] = (10 + this._wndW) + 'px';
-        this._wndL.style['width'] = (this._width - 20 - this._wndW) + 'px';
+        this._wndL.style['left'] = 0;
+        this._wndL.style['width'] = 0;
         this._wndL.style['background-color'] = 'rgba(210, 217, 220, 0.55)';
         d.appendChild(this._wndL);
         this._wndR = this._wndL.cloneNode();
-        this._wndR.style['left'] = (10) + 'px';
-        this._wndR.style['width'] = 0;
+        this._wndR.style['left'] = (this._wndX + this._wndW) + 'px';
+        this._wndR.style['width'] = (this._width - this._wndW- this._wndX) + 'px';
         d.appendChild(this._wndR);
-        this._wnd = this._wndR.cloneNode();
+        this._wnd = this._wndL.cloneNode();
         this._wnd.style['cursor'] = 'move';
         this._wnd.style['height'] = (this._pheight -6) + 'px';
-        this._wnd.style['width'] = (this._width - 20 - this._window) + 'px';
+        this._wnd.style['width'] = this._wndW + 'px';
         this._wnd.style['border'] = 'solid 3px rgba(180, 190, 195, 0.51)';
-        this._wnd.style['border-left-width'] = '5px';
-        this._wnd.style['border-right-width'] = '5px';
+        this._wnd.style['border-left-width'] = this._wndBw + 'px';
+        this._wnd.style['border-right-width'] = this._wndBw + 'px';
         this._wnd.style['border-radius'] = '3px';
         this._wnd.style['background-color'] = 'rgba(227, 237, 243, 0.21)';
         d.appendChild(this._wnd);
@@ -91,85 +93,64 @@ class TGraph {
 
     _wndInitEvents()
     {
-        let oldX1 = this._wndX0 + this._wndW, xOffset = 0, yOffset = 0, currentX, currentY, initialX, initialY,
-            ca = () => {
-                initialX = currentX;
-                initialY = currentY;
-                oldX1 = this._wndX0 + this._wndW;
-                this._wndOnMove = this._wndResizeL = this._wndResizeR = false;
+        let startPosition    = 0,     // start position mousedown event
+            currentPosition  = 0,     // count current translateX value
+            _RAF       = true,
+            md = (e) => {
+                e.preventDefault(); // reset default behavior
+                currentPosition = this._wndX; //getTranslateX(); // get current translateX value
+                startPosition   = e.clientX;       // get position X
+                let dx = e.clientX-this._wndX - 2 * this._wndBw;
+                this._wnd.style.cursor='col-resize';
+                this._wndAct = dx < 0 ? "left" : (dx > (this._wndW) ? "right" : "move");
+
+                this._wnd.style.cursor = this._wndAct === 'move' ? "move" : "col-resize";
             },
-            da = (e) => {
-                ca();
-                oldX1 = this._wndX0 + this._wndW;
-                if (e.type === "touchstart") {
-                    initialX = e.touches[0].clientX - xOffset;
-                    initialY = e.touches[0].clientY - yOffset;
-                } else {
-                    initialX = e.clientX - xOffset;
-                    initialY = e.clientY - yOffset;
+            processEvt = (e) => {
+                let newPos = (e.clientX - startPosition) + currentPosition;
+                if (this._wndAct === 'move') {
+                    this._wndX = newPos;
+                } else if (this._wndAct === 'right') {
+                    this._wndW = (e.clientX - this._wndX - 2 * this._wndBw);
+                } else if (this._wndAct === 'left') {
+                    this._wndW += (this._wndX - newPos);
+                    this._wndX = newPos;
                 }
-                if (e.offsetX < 0) {
-                    this._wndResizeL = true;
-                } else if (e.offsetX > e.target.clientWidth)
-                    this._wndResizeR = true;
-                else {
-                    this._wndOnMove = true;
-                }
-            };
-        this._wnd.addEventListener('mousedown', da);
-        this._wnd.addEventListener('touchstart', da);
-
-        this._wnd.addEventListener('mouseup', ca);
-        this._wnd.addEventListener('mouseout', ca);
-        this._wnd.addEventListener('touchend', ca);
-        this._wnd.addEventListener('touchcancel', ca);
-
-        let mme = (e) => {
-            if (e.offsetX < 0 || e.offsetX > e.target.clientWidth)
-                this._wnd.style['cursor'] = 'col-resize';
-            else
-                this._wnd.style['cursor'] = 'move';
+            },
+            mm = (e) => {
                 e.preventDefault();
-            if (this._wndOnMove || this._wndResizeR || this._wndResizeL) {
-                if (e.type === "touchmove") {
-                    currentX = e.touches[0].clientX - initialX;
-                    currentY = e.touches[0].clientY - initialY;
-                } else {
-                    currentX = e.clientX - initialX;
-                    currentY = e.clientY - initialY;
+                if (_RAF && this._wndAct) {
+                    processEvt(e);
+                    _RAF =  requestAnimationFrame(() => (_RAF = true) && this.wndUpd()) && false; // request 60fps animation
                 }
+            },
+            mu = (e) => {
+                e.preventDefault();
+                this._wnd.style.cursor='pointer';
+                this._wndAct = false; // reset mouse is down boolean
+            };
 
-                xOffset = currentX;
-                yOffset = currentY;
-                if (this._wndOnMove) {
-                    this._wndX = xOffset;// e.movementX;
-                } else if (this._wndResizeR) {
-                    this._wndW = xOffset;// e.movementX;
-                } else if (this._wndResizeL) {
-                    // xOffset += initialX;
-                    this._wndW += (this._wndX - currentX);
-                    this._wndX = currentX;// e.movementX;
-                }
-                this.wndUpd();
-            }
-        };
-        this._wnd.addEventListener('mousemove', mme);
-        this._wnd.addEventListener('touchmove', mme);
+        this._wnd.addEventListener("mousedown", md);
+        this._wnd.addEventListener('touchstart', md);
+        document.addEventListener("mousemove", mm);
+        document.addEventListener("mouseup", mu);
+        document.addEventListener('touchend', mu);
     }
+
 
     wndUpd() {
         //this._wndX = x0;
         //this._wndW = x1 - x0;
         let x1 = this._wndX + this._wndW;
-        this._wndR.style['left'] = (10) + 'px';
-        this._wndR.style['width'] = this._wndX + 'px';
+        this._wndL.style['left'] = (0) + 'px';
+        this._wndL.style['width'] = this._wndX + this._wndBw + 'px';
 
-        this._wnd.style['left'] = (15 + this._wndX) + 'px';
-        this._wnd.style['width'] = (this._wndW - 20) + 'px';
+        this._wnd.style['left'] = (this._wndX) + 'px';
+        this._wnd.style['width'] = (this._wndW ) + 'px';
 
-        this._wndL.style['left'] = (10 + x1) + 'px';
-        this._wndL.style['width'] = (this._width - 20 - x1) + 'px';
-        this.showW(this._wndX, this._wndW);
+        this._wndR.style['left'] = (this._wndX + this._wndW + this._wndBw) + 'px';
+        this._wndR.style['width'] = (this._width - (this._wndX + this._wndW)) + 'px';
+        this.showW(this._wndX + this._wndBw, this._wndW);
     }
 
     draw() {
@@ -306,7 +287,7 @@ class TLine {
     toSvg() {
         this._step = this._graph._width / this._data.length;
         let p = [];
-        for (let i=1; i < this._data.length; i++) p.push(this._step*(i-1) + "," + this._data[i-1]);
+        for (let i=0; i < this._data.length; i++) p.push(this._step*i + "," + this._data[i]);
         return `<polyline vector-effect="non-scaling-stroke" points="` + p.join(' ') + `" style="fill:none;stroke:${this._color};stroke-width:1" />`
     }
 }
