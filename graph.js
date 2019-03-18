@@ -109,12 +109,12 @@ class TGraph {
             processEvt = (e) => {
                 let newPos = (e.clientX - startPosition) + currentPosition;
                 if (this._wndAct === 'move') {
-                    this._wndX = newPos;
+                    this._wndX = Math.min(Math.max(0,newPos), this._width - this._wndW - this._wndBw);
                 } else if (this._wndAct === 'right') {
-                    this._wndW = (e.clientX - this._wndX - 2 * this._wndBw);
+                    this._wndW = Math.min(Math.max(0,e.clientX - this._wndX - 2 * this._wndBw), this._width - this._wndBw);
                 } else if (this._wndAct === 'left') {
-                    this._wndW += (this._wndX - newPos);
-                    this._wndX = newPos;
+                    this._wndW = Math.min(Math.max(0,this._wndW + (this._wndX - newPos)), this._width - this._wndBw);
+                    this._wndX = Math.min(Math.max(0,newPos), this._width - 2 * this._wndBw);
                 }
             },
             mm = (e) => {
@@ -186,6 +186,8 @@ class TGraph {
             p1 = (x2 ? Math.min(x2, ln) : ln) * st,
             sc = this._width / ((p1-p0) || 1);
         this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
+        this._xLabels.innerHTML = "";
+        this._xLabels.appendChild(this._series.xLabels());
     }
 }
 class TSeries {
@@ -216,14 +218,20 @@ class TSeries {
     xLabels() {
         let lw = 80,
             off = 30,
+            st = this._labels.length / this._graph._width,
+            x0 = this._graph._wndX,
+            x1 = (this._graph._wndX + this._graph._wndW),
+            stl = this._graph._wndW * this._labels.length / (this._graph._width * this._graph._width),
             g = _nes('g'),
             formatter = new Intl.DateTimeFormat("en", {
                 month: "short",
                 day: "numeric"
             });
         g.innerHTML = '';
-        for (let x=0; x<this._graph._width - 80; x+= lw) {
-            let lbl = this._labels[Math.floor(x * this._labels.length / this._graph._width)];
+        for (let x=0; x<this._graph._width - lw; x+= lw) {
+            let xx = x0*st + Math.floor(x * stl);
+            console.log(x + " :: " + xx + '/' + this._labels.length);
+            let lbl = this._labels[Math.floor(x0*st + x * stl)];
             if (this._labelsFormat === 'timestamp:day') {
                 lbl = formatter.format((new Date(+lbl)));
             }
@@ -243,6 +251,7 @@ class TSeries {
                 z = z || tl._zoom;
                 return tl;
             });
+
         this._labels.shift();
     }
 
