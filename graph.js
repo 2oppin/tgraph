@@ -79,11 +79,6 @@ class TGraph {
         this._wnd.style['background-color'] = 'rgba(227, 237, 243, 0.21)';
         d.appendChild(this._wnd);
 
-        this._xLabels = _nes('g');
-        this._svg.appendChild(this._xLabels);
-        this._yLabels = _nes('g');
-        this._svg.appendChild(this._yLabels);
-
         this._mainGraph = _nes('g');
         this._mainGraph.style['transition'] = '0.5s';
         this._svg.appendChild(this._mainGraph);
@@ -160,10 +155,11 @@ class TGraph {
         this._mainGraph.childNodes.forEach(e => e.style['stroke-width'] = 2);
         this._previewGraph.style['transform'] = "scaleY("+(+this._pheight/this._height)+")";
         this._previewGraph.innerHTML = lns;
-        this._xLabels.innerHTML = "";
-        this._xLabels.appendChild(this._series.xLabels());
-        this._yLabels.innerHTML = "";
-        this._yLabels.appendChild(this._series.yLabels());
+
+        this._xLabels = this._series.xLabels();
+        this._svg.appendChild(this._xLabels);
+        this._yLabels = this._series.yLabels();
+        this._svg.appendChild(this._yLabels);
         this.wndUpd(30, 100);
     }
 
@@ -186,8 +182,34 @@ class TGraph {
             p1 = (x2 ? Math.min(x2, ln) : ln) * st,
             sc = this._width / ((p1-p0) || 1);
         this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
-        this._xLabels.innerHTML = "";
-        this._xLabels.appendChild(this._series.xLabels());
+        this.updLabelsX(x1, x2);
+        //this._xLabels.innerHTML = "";
+        //this._xLabels.appendChild(this._series.xLabels());
+    }
+
+
+    updLabelsX(x0, x1) {
+        let minLw = 50,
+            normLw = 80,
+            l = this._series.lines()[0],
+            ln = l._data.length,
+            st = l._step,
+            p0 = st * x0,
+            p1 = (x1 ? Math.min(x1, ln) : ln) * st,
+            sc = this._width / ((p1-p0) || 1),
+            lw = l._step * sc,// ln / (x1 - x0 || 1) , // *  this._width/ (((x1 - x0)||1) * ln),
+            gX = x0*lw,
+            cml = '';
+        while(lw * (cml || 1) < minLw || (cml||0)%2) cml = (cml || 1) + 1;
+        this._xLabels.style['transform'] = `translateX(${lw-gX}px)`;
+        [].slice.call(this._xLabels.getElementsByTagName('text') || [])
+            .map((e, i) => {
+                e.style['transform'] = `translateX(${lw * i - normLw * i}px)`;
+                if (cml && !e.classList.contains('ml' + cml))
+                    e.style['opacity'] = 0;
+                else
+                    e.style['opacity'] = 1;
+            })
     }
 }
 class TSeries {
@@ -204,19 +226,19 @@ class TSeries {
 
     yLabels() {
         let g = _nes('g');
-        g.innerHTML = '';
+        g.style['transition'] = '0.5s';
         for (let i=this._graph._mgHeight; i >=0; i -= 50) {
             g.innerHTML += `<line x1="0" y1="${i}" x2="${this._graph._width}" y2="${i}" style="stroke:#ddd;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed />`;
         }
         let z = this._lines[0]._zoom;
         for (let i=this._graph._mgHeight - 1, j=0; i >=0; i -= 50, j++) {
-            g.innerHTML += `<text x="10" y="${i-10}" style="stroke: #888;stroke-width: 0.1;font-size: 14px;opacity: 0.6;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${Math.round(j*50*z)}</text>`;
+            g.innerHTML += `<text x="10" y="${i-10}" style="fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${Math.round(j*50*z)}</text>`;
         }
         return g;
     }
 
     xLabels() {
-        let lw = 80,
+        let lw = 80, // this._graph._width *  this._graph._width/ ((this._graph._wndW||1) * this._labels.length),
             off = 30,
             st = this._labels.length / this._graph._width,
             x0 = this._graph._wndX,
@@ -226,8 +248,22 @@ class TSeries {
             formatter = new Intl.DateTimeFormat("en", {
                 month: "short",
                 day: "numeric"
-            });
-        g.innerHTML = '';
+            }),
+            oCls = (ln) => {
+               let ml = [];
+               for(let j=2; j<=ln; j++)
+                   if(ln%j === 0) ml.push(j);
+               return 'ml' + ml.join(' ml');
+            };
+        g.style['transition'] = '0.5s';
+        for (let x=0; x < this._labels.length; x++) {
+            let lbl = this._labels[x], cls = oCls(x);
+            if (this._labelsFormat === 'timestamp:day') {
+                lbl = formatter.format((new Date(+lbl)));
+            }
+            g.innerHTML += `<text class="${cls}" text-anchor="middle" x="${x*lw}" y="${this._graph._height - 10}" style="transition: 0.5s;fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
+        }
+        /*
         for (let x=0; x<this._graph._width - lw; x+= lw) {
             let xx = x0*st + Math.floor(x * stl);
             console.log(x + " :: " + xx + '/' + this._labels.length);
@@ -237,6 +273,7 @@ class TSeries {
             }
             g.innerHTML += `<text x="${x+off}" y="${this._graph._height - 10}" style="stroke: #888;stroke-width: 0.1;font-size: 14px;opacity: 0.6;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
         }
+        */
         return g;
     }
 
