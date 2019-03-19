@@ -17,6 +17,8 @@ class TGraph {
     _wndL = null;
     _wndR = null;
     _wnd = null;
+    _buttons = null;
+    _buttonsArr = [];
     _wndBw = 10;
     _wndX = 0;
     _wndW = 100;
@@ -50,8 +52,6 @@ class TGraph {
         let d = _ne('div'), s = _nes('svg');
         d.style['position'] = 'relative';
         d.style['height'] = this._pheight + 'px';
-        // d.style['margin-top'] = `10px`;
-        // d.style['padding-left'] = `25px`;
         s.appendChild(this._previewGraph);
         d.appendChild(s);
         this._el.appendChild(d);
@@ -88,13 +88,13 @@ class TGraph {
 
     _wndInitEvents()
     {
-        let startPosition    = 0,     // start position mousedown event
-            currentPosition  = 0,     // count current translateX value
+        let startPosition    = 0,
+            currentPosition  = 0,
             _RAF       = true,
             md = (e) => {
-                e.preventDefault(); // reset default behavior
-                currentPosition = this._wndX; //getTranslateX(); // get current translateX value
-                startPosition   = e.clientX;       // get position X
+                e.preventDefault();
+                currentPosition = this._wndX;
+                startPosition   = e.clientX;
                 let dx = e.clientX-this._wndX - 2 * this._wndBw;
                 this._wnd.style.cursor='col-resize';
                 this._wndAct = dx < 0 ? "left" : (dx > (this._wndW) ? "right" : "move");
@@ -116,7 +116,7 @@ class TGraph {
                 e.preventDefault();
                 if (_RAF && this._wndAct) {
                     processEvt(e);
-                    _RAF =  requestAnimationFrame(() => (_RAF = true) && this.wndUpd()) && false; // request 60fps animation
+                    _RAF =  requestAnimationFrame(() => (_RAF = true) && this.wndUpd()) && false;
                 }
             },
             mu = (e) => {
@@ -160,6 +160,22 @@ class TGraph {
         this._svg.appendChild(this._xLabels);
         this._yLabels = this._series.yLabels();
         this._svg.appendChild(this._yLabels);
+
+        let bd = _ne('div'),
+            clk = (e) => {
+                l.toggle();console.log('CLICK ' + l._name);
+                b.getElementsByTagName('span').item(0).innerHTML = l._enabled ? "&#x2713;" : '';
+            };
+        for (let l of this._series.lines()) {
+            let b = _ne('div');
+            console.log(b);
+            b.style = 'float: left;padding: 3px;border-radius: 16px;background-color: '+l._color+';margin: 15px;height: 32px;line-height: 32px;text-align: center;min-width: 70px;';
+            b.innerHTML = '<span style="display:inline-block;width: 22px;height: 22px;font-size:22px;line-height: 22px;background-color: white;border-radius: 11px;margin: 5px;float: left;">&#x2713;</span>' + l._name;
+            bd.appendChild(b);
+            b.addEventListener('click', clk);
+        }
+        this._el.appendChild(bd);
+        let i =0;
         this.wndUpd(30, 100);
     }
 
@@ -177,14 +193,11 @@ class TGraph {
         let l = this._series.lines()[0],
             ln = l._data.length,
             st = l._step,
-            ttl = this._width / st,
             p0 = st * x1,
             p1 = (x2 ? Math.min(x2, ln) : ln) * st,
             sc = this._width / ((p1-p0) || 1);
         this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
         this.updLabelsX(x1, x2);
-        //this._xLabels.innerHTML = "";
-        //this._xLabels.appendChild(this._series.xLabels());
     }
 
 
@@ -197,7 +210,7 @@ class TGraph {
             p0 = st * x0,
             p1 = (x1 ? Math.min(x1, ln) : ln) * st,
             sc = this._width / ((p1-p0) || 1),
-            lw = l._step * sc,// ln / (x1 - x0 || 1) , // *  this._width/ (((x1 - x0)||1) * ln),
+            lw = l._step * sc,
             gX = x0*lw,
             cml = '';
         while(lw * (cml || 1) < minLw || (cml||0)%2) cml = (cml || 1) + 1;
@@ -316,6 +329,7 @@ class TLine {
     _data;
     _min;
     _max;
+    _enabled = true;
     _zoom = 1;
     constructor(g, n, l, c, d, z = 0) {
         this._graph = g;
@@ -334,6 +348,11 @@ class TLine {
         this._step = this._graph._width / this._data.length;
         let p = [];
         for (let i=0; i < this._data.length; i++) p.push(this._step*i + "," + this._data[i]);
-        return `<polyline vector-effect="non-scaling-stroke" points="` + p.join(' ') + `" style="fill:none;stroke:${this._color};stroke-width:1" />`
+        return `<polyline vector-effect="non-scaling-stroke" points="` + p.join(' ') + `" style="transition: 0.5s;fill:none;stroke:${this._color};stroke-width:1" />`;
     }
+
+    toggle() {
+
+    }
+
 }
