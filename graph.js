@@ -38,7 +38,6 @@ class TGraph {
 
         this.draw();
     }
-
     get _mgHeight() {
         return this._height - this._aheight;
     }
@@ -50,6 +49,7 @@ class TGraph {
 
         this._previewGraph = _nes('g');
         let d = _ne('div'), s = _nes('svg');
+        s.setAttribute('height', '100');
         d.style['position'] = 'relative';
         d.style['height'] = this._pheight + 'px';
         s.appendChild(this._previewGraph);
@@ -85,6 +85,48 @@ class TGraph {
 
         this._wndInitEvents();
     }
+
+    draw() {
+        let lns = "";
+        this._series.lines().map(l => {
+            console.log(l.el);
+            this._mainGraph.appendChild(l.el);
+            this._previewGraph.appendChild(l.el.cloneNode());
+            // lns += l.toSvg();
+        });
+        //this._mainGraph.innerHTML = lns;
+        this._mainGraph.childNodes.forEach(e => e.style['stroke-width'] = 2);
+        this._previewGraph.style['transform'] = "scaleY("+(+this._pheight/this._height)+")";
+        // this._previewGraph.innerHTML = lns;
+
+        this._xLabels = this._series.xLabels();
+        this._svg.appendChild(this._xLabels);
+        this._yLabels = this._series.yLabels();
+        this._svg.appendChild(this._yLabels);
+
+        this._buttons = _ne('div');
+        let clk = (l) => (e) => {
+            l.toggle();console.log('CLICK ' + l._name);
+            e.target.getElementsByTagName('span').item(0).innerHTML = l._enabled ? "&#x2713;" : '';
+        };
+        for (let l of this._series.lines()) {
+            let b = _ne('div');
+            b.className = 'btn-graph';
+            b.style = 'float: left;padding: 3px;border-radius: 16px;background-color: '+l._color+';margin: 15px;height: 32px;line-height: 32px;text-align: center;min-width: 70px;';
+            b.innerHTML = '<span style="pointer-events: none;display:inline-block;width: 22px;height: 22px;font-size:22px;line-height: 22px;background-color: white;border-radius: 11px;margin: 5px;float: left;">&#x2713;</span>' + l._name;
+            this._buttons.appendChild(b);
+            b.addEventListener('click', clk(l));
+        }
+        this._el.appendChild(this._buttons);
+        /*
+        console.log(this._buttons.getElementsByClassName('btn-graph'));
+        [].slice.call(this._buttons.getElementsByClassName('btn-graph')).map((el, i) => {
+            console.log("Added ~ " + this._series.lines()[i]._name);
+            el.addEventListener('click', clk(this._series.lines()[i]));
+        });*/
+        this.wndUpd(30, 100);
+    }
+
 
     _wndInitEvents()
     {
@@ -146,37 +188,6 @@ class TGraph {
         this._wndR.style['left'] = (this._wndX + this._wndW + this._wndBw) + 'px';
         this._wndR.style['width'] = (this._width - (this._wndX + this._wndW)) + 'px';
         this.showW(this._wndX + this._wndBw, this._wndW);
-    }
-
-    draw() {
-        let lns = "";
-        this._series.lines().map(l => lns += l.toSvg());
-        this._mainGraph.innerHTML = lns;
-        this._mainGraph.childNodes.forEach(e => e.style['stroke-width'] = 2);
-        this._previewGraph.style['transform'] = "scaleY("+(+this._pheight/this._height)+")";
-        this._previewGraph.innerHTML = lns;
-
-        this._xLabels = this._series.xLabels();
-        this._svg.appendChild(this._xLabels);
-        this._yLabels = this._series.yLabels();
-        this._svg.appendChild(this._yLabels);
-
-        let bd = _ne('div'),
-            clk = (e) => {
-                l.toggle();console.log('CLICK ' + l._name);
-                b.getElementsByTagName('span').item(0).innerHTML = l._enabled ? "&#x2713;" : '';
-            };
-        for (let l of this._series.lines()) {
-            let b = _ne('div');
-            console.log(b);
-            b.style = 'float: left;padding: 3px;border-radius: 16px;background-color: '+l._color+';margin: 15px;height: 32px;line-height: 32px;text-align: center;min-width: 70px;';
-            b.innerHTML = '<span style="display:inline-block;width: 22px;height: 22px;font-size:22px;line-height: 22px;background-color: white;border-radius: 11px;margin: 5px;float: left;">&#x2713;</span>' + l._name;
-            bd.appendChild(b);
-            b.addEventListener('click', clk);
-        }
-        this._el.appendChild(bd);
-        let i =0;
-        this.wndUpd(30, 100);
     }
 
     showW(x0, w) {
@@ -321,6 +332,7 @@ class TSeries {
 }
 
 class TLine {
+    _el = null;
     _graph;
     _step;
     _name;
@@ -331,6 +343,7 @@ class TLine {
     _max;
     _enabled = true;
     _zoom = 1;
+    _offset = 0;
     constructor(g, n, l, c, d, z = 0) {
         this._graph = g;
         this._name = n; this._label = l; this._color = c;
@@ -339,7 +352,13 @@ class TLine {
         this._data = d.map(e => this._graph._mgHeight - e / this._zoom);
     }
 
+    azoom(x0, x1) {
+        let [mn, mx] = _mm(this._data.slice(x0, x1 - x0));
+        this._zoom = mx / this._graph._mgHeight;
+        this._el.style['transform'] = `translateY(${mn}) scaleY(${1})`;
+    }
     zoom(z) {
+        let dz = z / this._zoom;
         this._data = d.map(e => this._graph._mgHeight - e * this._zoom / z);
         this._zoom = z;
     }
@@ -350,9 +369,25 @@ class TLine {
         for (let i=0; i < this._data.length; i++) p.push(this._step*i + "," + this._data[i]);
         return `<polyline vector-effect="non-scaling-stroke" points="` + p.join(' ') + `" style="transition: 0.5s;fill:none;stroke:${this._color};stroke-width:1" />`;
     }
+    get el() {
+        if (this._el) return this._el;
+
+        this._step = this._graph._width / this._data.length;
+        let p = [];
+        for (let i=0; i < this._data.length; i++) p.push(this._step*i + "," + this._data[i]);
+        this._el = _nes('polyline');
+        this._el.setAttribute('vector-effect', "non-scaling-stroke");
+        this._el.style = `transition: 0.5s;fill:none;stroke:${this._color};stroke-width:1`;
+        this._el.setAttribute('points', p.join(' '));
+        this._el.style['transform'] = `translateY(${this._min}) scaleY(${this._zoom})`;
+
+        return this._el;// `<polyline vector-effect="non-scaling-stroke" points="` + p.join(' ') + `" style="transition: 0.5s;fill:none;stroke:${this._color};stroke-width:1" />`;
+    }
+
 
     toggle() {
-
+        this._enabled = !this._enabled;
+        this._el.style['opacity'] = this._enabled ? 1 : 0;
     }
 
 }
