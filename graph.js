@@ -24,6 +24,8 @@ class TGraph {
     _wndX = -10;
     _wndW = 100;
 
+    _showPt = true;
+    _Pt = null;
     _wndAct = false; // false || [move, left, right]
 
     constructor(el, data, preview = true) {
@@ -118,6 +120,35 @@ class TGraph {
         }
         this._el.appendChild(this._buttons);
         this.wndUpd(30, 100);
+
+        this._Pt = _nes('g');
+        let ln = _nes('line');
+        this._Pt.appendChild(ln);
+        ln.style.stroke = 'red';
+        ln.style.r = '15px';
+        ln.setAttribute('y1',0);
+        ln.setAttribute('y2',this._height);
+        ln.setAttribute('x1',0);
+        ln.setAttribute('x2',0);
+        this._mainGraph.appendChild(this._Pt);
+        let pt = this._svg.createSVGPoint(),
+            _RAF       = true,
+            pointer = (e) => {
+                let cli = _et(e) ? e.touches[0] : e;
+                pt.x = cli.clientX; pt.y = cli.clientY;
+                let p = pt.matrixTransform( this._mainGraph.getScreenCTM().inverse());
+                this._Pt.style.transform = `translateX(${p.x}px)`;
+                // circ.style.cx = p.x;
+                // circ.style.cy = p.y;
+            },
+            mm = (e) => {
+                if (!_et(e)) e.preventDefault();
+                if (_RAF) {
+                    _RAF =  requestAnimationFrame(() => (_RAF = true) && pointer(e)) && false;
+                }
+            };
+        this._svg.addEventListener('click', mm);
+        // this._mainGraph.addEventListener('tap', mm);
     }
 
 
@@ -127,7 +158,7 @@ class TGraph {
             currentPosition  = 0,
             _RAF       = true,
             processEvt = (e) => {
-                let cliX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX,
+                let cliX = _et(e) ? e.touches[0].clientX : e.clientX,
                     newPos = (cliX - startPosition) + currentPosition;
                 if (this._wndAct === 'move') {
                     this._wndX = Math.min(Math.max(-this._wndBw,newPos), this._width - this._wndW - this._wndBw);
