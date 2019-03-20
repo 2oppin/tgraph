@@ -1,3 +1,4 @@
+let _et = (e) => e.touches && e.touches.length;
 let _ne = (t) => document.createElement(t);
 let _nes = (t) => document.createElementNS("http://www.w3.org/2000/svg", t);
 let _mm = (arr) => {let a = arr.slice(0).sort((a,b)=>a-b); return [a[0], a.pop()];};
@@ -125,20 +126,8 @@ class TGraph {
         let startPosition    = 0,
             currentPosition  = 0,
             _RAF       = true,
-            md = (e) => {
-                // e.preventDefault();
-                currentPosition = this._wndX;
-                // startPosition   = e.clientX;
-                startPosition = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
-
-                let dx = startPosition - this._wndX - 2 * this._wndBw;
-                this._wnd.style.cursor='col-resize';
-                this._wndAct = dx < 0 ? "left" : (dx > (this._wndW) ? "right" : "move");
-
-                this._wnd.style.cursor = this._wndAct === 'move' ? "move" : "col-resize";
-            },
             processEvt = (e) => {
-                let cliX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX,
+                let cliX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX,
                     newPos = (cliX - startPosition) + currentPosition;
                 if (this._wndAct === 'move') {
                     this._wndX = Math.min(Math.max(-this._wndBw,newPos), this._width - this._wndW - this._wndBw);
@@ -150,24 +139,37 @@ class TGraph {
                 }
             },
             mm = (e) => {
-                // e.preventDefault();
+                if (!_et(e)) e.preventDefault();
                 if (_RAF && this._wndAct) {
                     processEvt(e);
                     _RAF =  requestAnimationFrame(() => (_RAF = true) && this.wndUpd()) && false;
                 }
             },
             mu = (e) => {
-                // e.preventDefault();
+                e.preventDefault();
                 this._wnd.style.cursor='pointer';
                 this._wndAct = false; // reset mouse is down boolean
+                document.removeEventListener(_et(e) ? 'touchmove' : 'mousemove', mm);
+            },
+            md = (e) => {
+                e.preventDefault();
+                currentPosition = this._wndX;
+                // startPosition   = e.clientX;
+                startPosition = _et(e) ? e.touches[0].clientX : e.clientX;
+
+                let dx = startPosition - this._wndX - 2 * this._wndBw;
+                this._wnd.style.cursor='col-resize';
+                this._wndAct = dx < 0 ? "left" : (dx > (this._wndW) ? "right" : "move");
+
+                this._wnd.style.cursor = this._wndAct === 'move' ? "move" : "col-resize";
+
+                let evs =  _et(e) ? ['touchmove', 'touchend'] : ['mousemove', 'mouseup'];
+                document.addEventListener(evs[0], mm);
+                document.addEventListener(evs[1], mu, {once: true});
             };
 
-        this._wnd.addEventListener("mousedown", md);
-        this._wnd.addEventListener('touchstart', md);
-        document.addEventListener("mousemove", mm);
-        document.addEventListener("touchmove", mm);
-        document.addEventListener("mouseup", mu);
-        document.addEventListener('touchend', mu);
+        this._wnd.addEventListener("mousedown", md, false);
+        this._wnd.addEventListener('touchstart', md, false);
     }
 
 
@@ -316,7 +318,6 @@ class TSeries {
             return [Math.min(mn, a[0]),Math.max(mx, a[1])];
         },[1/0,-1/0]);
         let z = this._graph._mgHeight / (MX - MN), o = MN;
-        console.log("Rescale: " + x0 + ":" + x1 + " X " + MN + '->' + MX + " == ");
         for (let l of this.lines())
             l.rescale(o, z);
     }
