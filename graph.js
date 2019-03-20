@@ -20,7 +20,7 @@ class TGraph {
     _buttons = null;
     _buttonsArr = [];
     _wndBw = 10;
-    _wndX = 0;
+    _wndX = -10;
     _wndW = 100;
 
     _wndAct = false; // false || [move, left, right]
@@ -87,17 +87,13 @@ class TGraph {
     }
 
     draw() {
-        let lns = "";
+
         this._series.lines().map(l => {
-            console.log(l.el);
             this._mainGraph.appendChild(l.el);
             this._previewGraph.appendChild(l.el.cloneNode());
-            // lns += l.toSvg();
         });
-        //this._mainGraph.innerHTML = lns;
         this._mainGraph.childNodes.forEach(e => e.style['stroke-width'] = 2);
         this._previewGraph.style['transform'] = "scaleY("+(+this._pheight/this._height)+")";
-        // this._previewGraph.innerHTML = lns;
 
         this._xLabels = this._series.xLabels();
         this._svg.appendChild(this._xLabels);
@@ -106,8 +102,9 @@ class TGraph {
 
         this._buttons = _ne('div');
         let clk = (l) => (e) => {
-            l.toggle();console.log('CLICK ' + l._name);
+            l.toggle();
             e.target.getElementsByTagName('span').item(0).innerHTML = l._enabled ? "&#x2713;" : '';
+            this.wndUpd();
         };
         for (let l of this._series.lines()) {
             let b = _ne('div');
@@ -116,14 +113,9 @@ class TGraph {
             b.innerHTML = '<span style="pointer-events: none;display:inline-block;width: 22px;height: 22px;font-size:22px;line-height: 22px;background-color: white;border-radius: 11px;margin: 5px;float: left;">&#x2713;</span>' + l._name;
             this._buttons.appendChild(b);
             b.addEventListener('click', clk(l));
+            //b.addEventListener('touchstart', clk(l));
         }
         this._el.appendChild(this._buttons);
-        /*
-        console.log(this._buttons.getElementsByClassName('btn-graph'));
-        [].slice.call(this._buttons.getElementsByClassName('btn-graph')).map((el, i) => {
-            console.log("Added ~ " + this._series.lines()[i]._name);
-            el.addEventListener('click', clk(this._series.lines()[i]));
-        });*/
         this.wndUpd(30, 100);
     }
 
@@ -134,35 +126,38 @@ class TGraph {
             currentPosition  = 0,
             _RAF       = true,
             md = (e) => {
-                e.preventDefault();
+                // e.preventDefault();
                 currentPosition = this._wndX;
-                startPosition   = e.clientX;
-                let dx = e.clientX-this._wndX - 2 * this._wndBw;
+                // startPosition   = e.clientX;
+                startPosition = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
+
+                let dx = startPosition - this._wndX - 2 * this._wndBw;
                 this._wnd.style.cursor='col-resize';
                 this._wndAct = dx < 0 ? "left" : (dx > (this._wndW) ? "right" : "move");
 
                 this._wnd.style.cursor = this._wndAct === 'move' ? "move" : "col-resize";
             },
             processEvt = (e) => {
-                let newPos = (e.clientX - startPosition) + currentPosition;
+                let cliX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX,
+                    newPos = (cliX - startPosition) + currentPosition;
                 if (this._wndAct === 'move') {
-                    this._wndX = Math.min(Math.max(0,newPos), this._width - this._wndW - this._wndBw);
+                    this._wndX = Math.min(Math.max(-this._wndBw,newPos), this._width - this._wndW - this._wndBw);
                 } else if (this._wndAct === 'right') {
-                    this._wndW = Math.min(Math.max(0,e.clientX - this._wndX - 2 * this._wndBw), this._width - this._wndBw);
+                    this._wndW = Math.min(Math.max(0,cliX - this._wndX - 2 * this._wndBw), this._width - this._wndBw);
                 } else if (this._wndAct === 'left') {
                     this._wndW = Math.min(Math.max(0,this._wndW + (this._wndX - newPos)), this._width - this._wndBw);
-                    this._wndX = Math.min(Math.max(0,newPos), this._width - 2 * this._wndBw);
+                    this._wndX = Math.min(Math.max(-this._wndBw,newPos), this._width - 2 * this._wndBw);
                 }
             },
             mm = (e) => {
-                e.preventDefault();
+                // e.preventDefault();
                 if (_RAF && this._wndAct) {
                     processEvt(e);
                     _RAF =  requestAnimationFrame(() => (_RAF = true) && this.wndUpd()) && false;
                 }
             },
             mu = (e) => {
-                e.preventDefault();
+                // e.preventDefault();
                 this._wnd.style.cursor='pointer';
                 this._wndAct = false; // reset mouse is down boolean
             };
@@ -170,6 +165,7 @@ class TGraph {
         this._wnd.addEventListener("mousedown", md);
         this._wnd.addEventListener('touchstart', md);
         document.addEventListener("mousemove", mm);
+        document.addEventListener("touchmove", mm);
         document.addEventListener("mouseup", mu);
         document.addEventListener('touchend', mu);
     }
@@ -204,13 +200,19 @@ class TGraph {
         let l = this._series.lines()[0],
             ln = l._data.length,
             st = l._step,
-            p0 = st * x1,
+            p0 = st * (x1),
             p1 = (x2 ? Math.min(x2, ln) : ln) * st,
             sc = this._width / ((p1-p0) || 1);
         this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
         this.updLabelsX(x1, x2);
-    }
 
+        this._series.rescale(x1, x2);
+        this.updLabelsY(l._offset / l._zoom, this._mgHeight / l._zoom);
+    }
+    updLabelsY(min, max) {
+        this._yLabels.innerHTML = "";
+        this._yLabels.appendChild(this._series.yLabels(min, max));
+    }
 
     updLabelsX(x0, x1) {
         let minLw = 50,
@@ -248,16 +250,18 @@ class TSeries {
         this.load(data);
     };
 
-    yLabels() {
+    yLabels(min = null, max = null) {
+        let o = this._lines[0]._offset,
+            z = this._lines[0]._zoom;
         let g = _nes('g');
         g.style['transition'] = '0.5s';
         for (let i=this._graph._mgHeight; i >=0; i -= 50) {
             g.innerHTML += `<line x1="0" y1="${i}" x2="${this._graph._width}" y2="${i}" style="stroke:#ddd;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed />`;
         }
-        let z = this._lines[0]._zoom;
-        for (let i=this._graph._mgHeight - 1, j=0; i >=0; i -= 50, j++) {
-            g.innerHTML += `<text x="10" y="${i-10}" style="fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${Math.round(j*50*z)}</text>`;
-        }
+        if (this.lines().filter(l => l._enabled).length)
+            for (let i=this._graph._mgHeight - 1, j=0; i >=0; i -= 50, j++) {
+                g.innerHTML += `<text x="10" y="${i-10}" style="fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${Math.round(o + j*50/z)}</text>`;
+            }
         return g;
     }
 
@@ -287,17 +291,6 @@ class TSeries {
             }
             g.innerHTML += `<text class="${cls}" text-anchor="middle" x="${x*lw}" y="${this._graph._height - 10}" style="transition: 0.5s;fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
         }
-        /*
-        for (let x=0; x<this._graph._width - lw; x+= lw) {
-            let xx = x0*st + Math.floor(x * stl);
-            console.log(x + " :: " + xx + '/' + this._labels.length);
-            let lbl = this._labels[Math.floor(x0*st + x * stl)];
-            if (this._labelsFormat === 'timestamp:day') {
-                lbl = formatter.format((new Date(+lbl)));
-            }
-            g.innerHTML += `<text x="${x+off}" y="${this._graph._height - 10}" style="stroke: #888;stroke-width: 0.1;font-size: 14px;opacity: 0.6;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
-        }
-        */
         return g;
     }
 
@@ -309,11 +302,23 @@ class TSeries {
                 let l = (data.names && data.names[s[0]]) || '',
                     c = (data.colors && data.colors[s[0]]) || 'black',
                     tl = new TLine(this._graph, s[0], l, c, s.slice(1));
-                z = z || tl._zoom;
                 return tl;
             });
-
         this._labels.shift();
+        this.rescale();
+    }
+
+    rescale(x0 = null, x1 = null) {
+        x0 = Math.floor(Math.min(Math.max(x0 || 0, 0), this._labels.length));
+        x1 = Math.ceil(Math.max(Math.min(x1 || this._labels.length, this._labels.length), 0));
+        let [MN, MX] = this._lines.filter(l => l._enabled).reduce((a,l) => {
+            let [mn, mx] = l.mnmx(x0, x1);
+            return [Math.min(mn, a[0]),Math.max(mx, a[1])];
+        },[1/0,-1/0]);
+        let z = this._graph._mgHeight / (MX - MN), o = MN;
+        console.log("Rescale: " + x0 + ":" + x1 + " X " + MN + '->' + MX + " == ");
+        for (let l of this.lines())
+            l.rescale(o, z);
     }
 
     lines() {
@@ -349,26 +354,13 @@ class TLine {
         this._name = n; this._label = l; this._color = c;
         [this._min, this._max] = _mm(d);
         this._zoom = z || this._max / this._graph._mgHeight;
-        this._data = d.map(e => this._graph._mgHeight - e / this._zoom);
+        this._data = d;
     }
 
-    azoom(x0, x1) {
-        let [mn, mx] = _mm(this._data.slice(x0, x1 - x0));
-        this._zoom = mx / this._graph._mgHeight;
-        this._el.style['transform'] = `translateY(${mn}) scaleY(${1})`;
-    }
-    zoom(z) {
-        let dz = z / this._zoom;
-        this._data = d.map(e => this._graph._mgHeight - e * this._zoom / z);
-        this._zoom = z;
+    mnmx(x0, x1) {
+        return _mm(this._data.slice(x0, x1));
     }
 
-    toSvg() {
-        this._step = this._graph._width / this._data.length;
-        let p = [];
-        for (let i=0; i < this._data.length; i++) p.push(this._step*i + "," + this._data[i]);
-        return `<polyline vector-effect="non-scaling-stroke" points="` + p.join(' ') + `" style="transition: 0.5s;fill:none;stroke:${this._color};stroke-width:1" />`;
-    }
     get el() {
         if (this._el) return this._el;
 
@@ -377,13 +369,19 @@ class TLine {
         for (let i=0; i < this._data.length; i++) p.push(this._step*i + "," + this._data[i]);
         this._el = _nes('polyline');
         this._el.setAttribute('vector-effect', "non-scaling-stroke");
-        this._el.style = `transition: 0.5s;fill:none;stroke:${this._color};stroke-width:1`;
+        this._el.style = `transform-origin: 0 0;transition: 0.5s;fill:none;stroke:${this._color};stroke-width:1`;
         this._el.setAttribute('points', p.join(' '));
-        this._el.style['transform'] = `translateY(${this._min}) scaleY(${this._zoom})`;
+        this.rescale(this._offset, this._zoom);
 
-        return this._el;// `<polyline vector-effect="non-scaling-stroke" points="` + p.join(' ') + `" style="transition: 0.5s;fill:none;stroke:${this._color};stroke-width:1" />`;
+        return this._el;
     }
 
+    rescale(off, z) {
+        this._offset = off;
+        this._zoom = z;
+        if (this._el)
+            this._el.style['transform'] = `translateY(${this._graph._mgHeight + this._offset*this._zoom}px) scaleY(-${this._zoom})`;
+    }
 
     toggle() {
         this._enabled = !this._enabled;
