@@ -12,6 +12,7 @@ class TGraph {
     _previewGraph = null;
     _yLabels = null;
     _xLabels = null;
+    _lw = 80;
     _pheight = 100;
     _aheight = 30;
     _series = null;
@@ -36,10 +37,8 @@ class TGraph {
 
         this._width = sz.width;
         this._height = sz.height - this._pheight;
-        this.init();
         this._series = new TSeries(this, data);
-
-        this.draw();
+        this.init();
     }
     get _mgHeight() {
         return this._height - this._aheight;
@@ -84,12 +83,8 @@ class TGraph {
 
         this._mainGraph = _nes('g');
         this._mainGraph.style['transition'] = '0.5s';
-        this._svg.appendChild(this._mainGraph);
 
         this._wndInitEvents();
-    }
-
-    draw() {
 
         this._series.lines().map(l => {
             this._mainGraph.appendChild(l.el);
@@ -99,9 +94,11 @@ class TGraph {
         this._previewGraph.style['transform'] = "scaleY("+(+this._pheight/this._height)+")";
 
         this._xLabels = this._series.xLabels();
-        this._svg.appendChild(this._xLabels);
         this._yLabels = this._series.yLabels();
+
+        this._svg.appendChild(this._xLabels);
         this._svg.appendChild(this._yLabels);
+        this._svg.appendChild(this._mainGraph);
 
         this._buttons = _ne('div');
         let clk = (l) => (e) => {
@@ -121,36 +118,107 @@ class TGraph {
         this._el.appendChild(this._buttons);
         this.wndUpd(30, 100);
 
-        this._Pt = _nes('g');
-        let ln = _nes('line');
+        if (this._showPt) this._PtDraw();
+    }
+
+    _PtDraw() {
+        this._Pt = _nes("g");
+        let ln = _nes("line"),
+            rect = _nes("rect"),
+            lblX = _nes("text"),
+            rw = Math.max(140, this._series._lines.length * 80)+ "px",
+            lblY = [],
+            circs = [];
+        this._Pt.style.opacity = 0;
         this._Pt.appendChild(ln);
-        ln.style.stroke = 'red';
-        ln.style.r = '15px';
-        ln.setAttribute('y1',0);
-        ln.setAttribute('y2',this._height);
-        ln.setAttribute('x1',0);
-        ln.setAttribute('x2',0);
+        this._Pt.appendChild(rect);
+        this._Pt.appendChild(lblX);
+        rect.setAttribute("x", "-40px");
+        rect.setAttribute("rx", "15px");
+        rect.setAttribute("ry", "15px");
+        rect.setAttribute("width", rw);
+        rect.setAttribute("height", "80px");
+        rect.setAttribute("text-anchor", "middle");
+        rect.setAttribute("vector-effect", "non-scaling-stroke");
+        lblX.setAttribute("x", "0");
+        lblX.setAttribute("y", "25");
+        lblX.setAttribute("vector-effect", "non-scaling-stroke");
+        lblX.setAttribute("shape-rendering", "optimizeSpeed");
+        rect.setAttribute("width", rw);
+        lblX.style = `width: ${rw}px;stroke:#000`;
+        lblX.innerHTML = "There whould be label";
+
+        rect.style.stroke = "#e7ecf1";
+        rect.style.strokeWidth = "1px";
+        rect.style.fill = "#fff";
+
+        ln.style.stroke = "#e7ecf1";
+        ln.style.strokeWidth = "1px";
+        ["y1","x1", "x2"].map(a => ln.setAttribute(a,0));
+        ln.setAttribute("y2",this._height);
+        ln.setAttribute("vector-effect", "non-scaling-stroke");
+        this._series._lines.map((l, i) => {
+            let c = _nes("circle"),
+                lby = _nes("text"),
+                [, sc] = this._scp;
+            c.setAttribute("r", 4);
+            c.setAttribute("vector-effect", "non-scaling-stroke");
+            c.style.stroke = l._color;
+            c.style.fill = "#fff";
+            this._Pt.appendChild(c);
+            circs.push(c);
+
+            lby.setAttribute("x", 80*i);
+            lby.setAttribute("y", "45");
+            lby.setAttribute("vector-effect", "non-scaling-stroke");
+            lby.setAttribute("shape-rendering", "optimizeSpeed");
+            lby.style = `stroke: ${l._color}`;
+            this._Pt.appendChild(lby);
+            lblY.push(lby);
+        });
         this._mainGraph.appendChild(this._Pt);
-        let pt = this._svg.createSVGPoint(),
+        let sp = this._svg.createSVGPoint(),
             _RAF       = true,
-            pointer = (e) => {
+            pt = (e) => {
                 let cli = _et(e) ? e.touches[0] : e;
-                pt.x = cli.clientX; pt.y = cli.clientY;
-                let p = pt.matrixTransform( this._mainGraph.getScreenCTM().inverse());
-                this._Pt.style.transform = `translateX(${p.x}px)`;
-                // circ.style.cx = p.x;
-                // circ.style.cy = p.y;
+                sp.x = cli.clientX; sp.y = cli.clientY;
+                let [o, z, d] = this._series.ozd,
+                    [, sc] = this._scp,
+                    p = sp.matrixTransform( this._mainGraph.getScreenCTM().inverse()),
+                    x = p.x * d,
+                    x1 = Math.floor(x),
+                    x2 = x1 + 1;
+                this._Pt.style.transform = `translateX(${p.x}px) scaleX(${1/sc})`;
+                let Ys = [];
+                this._series._lines.map((l, i) => {
+                    circs[i].style.opacity = +l._enabled;
+                    if (!l._enabled) return;
+                    let y1 = l._data[x1],
+                        y2 = l._data[x2],
+                        y = y1 - (y2 - y1) * (x1 - x),
+                        py = this._mgHeight - (y-o)*z;
+                        circs[i].setAttribute("cy", py);
+                        Ys.push(y);
+                    lblY[i].innerHTML = Math.floor(y);
+                });
+                lblX.innerHTML = this._series._lbl(x1, "wmd");
             },
             mm = (e) => {
                 if (!_et(e)) e.preventDefault();
-                if (_RAF) {
-                    _RAF =  requestAnimationFrame(() => (_RAF = true) && pointer(e)) && false;
-                }
+                if (_RAF) _RAF =  requestAnimationFrame(() => (_RAF = true) && pt(e)) && false;
+            },
+            mu = (e) => {
+                this._svg.removeEventListener(_et(e) ? "touchmove" : "mousemove", mm);
+            },
+            md = (e) => {
+                pt(e);
+                this._Pt.style.opacity = 1;
+                this._svg.addEventListener(_et(e) ? "touchmove" : "mousemove", mm);
+                this._svg.addEventListener(_et(e) ? "touchend" : "mouseup", mu, {once: true});
             };
-        this._svg.addEventListener('click', mm);
-        // this._mainGraph.addEventListener('tap', mm);
-    }
 
+        ["touchstart", "mousedown"].map( e => this._svg.addEventListener(e, md));
+    }
 
     _wndInitEvents()
     {
@@ -163,9 +231,9 @@ class TGraph {
                 if (this._wndAct === 'move') {
                     this._wndX = Math.min(Math.max(-this._wndBw,newPos), this._width - this._wndW - this._wndBw);
                 } else if (this._wndAct === 'right') {
-                    this._wndW = Math.min(Math.max(0,cliX - this._wndX - 2 * this._wndBw), this._width - this._wndBw);
+                    this._wndW = Math.min(Math.max(0,cliX - this._wndX - 2 * this._wndBw), this._width);
                 } else if (this._wndAct === 'left') {
-                    this._wndW = Math.min(Math.max(0,this._wndW + (this._wndX - newPos)), this._width - this._wndBw);
+                    this._wndW = Math.min(Math.max(0,this._wndW + (this._wndX - newPos)), this._width);
                     this._wndX = Math.min(Math.max(-this._wndBw,newPos), this._width - 2 * this._wndBw);
                 }
             },
@@ -184,6 +252,7 @@ class TGraph {
             },
             md = (e) => {
                 e.preventDefault();
+                if (this._Pt) this._Pt.style.opacity = 0;
                 currentPosition = this._wndX;
                 // startPosition   = e.clientX;
                 startPosition = _et(e) ? e.touches[0].clientX : e.clientX;
@@ -205,9 +274,6 @@ class TGraph {
 
 
     wndUpd() {
-        //this._wndX = x0;
-        //this._wndW = x1 - x0;
-        let x1 = this._wndX + this._wndW;
         this._wndL.style['left'] = (0) + 'px';
         this._wndL.style['width'] = this._wndX + this._wndBw + 'px';
 
@@ -216,32 +282,34 @@ class TGraph {
 
         this._wndR.style['left'] = (this._wndX + this._wndW + this._wndBw) + 'px';
         this._wndR.style['width'] = (this._width - (this._wndX + this._wndW)) + 'px';
-        this.showW(this._wndX + this._wndBw, this._wndW);
+        this.show(this._wndX + this._wndBw, this._wndW);
     }
-
-    showW(x0, w) {
-        let l = this._series.lines()[0],
+    get _x1() { return this._wndX + this._wndBw; }
+    get _x2() { return this._wndX + this._wndBw + this._wndW; }
+    get _scp() {
+        let x0 = this._x1,
+            w = this._wndW,
+            l = this._series._lines[0],
             ln = l._data.length,
             st = l._step,
             z = ln / this._width;
-        let x1 = x0 * z,
-            x2 = (x0 + w) * z;
-        this.show(x1, x2);
+        let x2 = (x0 + w) * z;
+        let p0 = st * (x0 * z),
+            p1 = (x2 ? Math.min(x2, ln) : ln) * st;
+        return [p0, this._width / ((p1-p0) || 1)];
     }
 
-    show(x1, x2) {
-        let l = this._series.lines()[0],
-            ln = l._data.length,
-            st = l._step,
-            p0 = st * (x1),
-            p1 = (x2 ? Math.min(x2, ln) : ln) * st,
-            sc = this._width / ((p1-p0) || 1);
+    show() {
+        let [o, z, d] = this._series.ozd,
+            [p0, sc] = this._scp,
+            x1 = this._x1 * d,
+            x2 = this._x2 * d;
         this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
         this.updLabelsX(x1, x2);
-
         this._series.rescale(x1, x2);
-        this.updLabelsY(l._offset / l._zoom, this._mgHeight / l._zoom);
+        this.updLabelsY(o / z, this._mgHeight / z);
     }
+
     updLabelsY(min, max) {
         this._yLabels.innerHTML = "";
         this._yLabels.appendChild(this._series.yLabels(min, max));
@@ -249,21 +317,16 @@ class TGraph {
 
     updLabelsX(x0, x1) {
         let minLw = 50,
-            normLw = 80,
             l = this._series.lines()[0],
-            ln = l._data.length,
-            st = l._step,
-            p0 = st * x0,
-            p1 = (x1 ? Math.min(x1, ln) : ln) * st,
-            sc = this._width / ((p1-p0) || 1),
+            [,sc] = this._scp,
             lw = l._step * sc,
             gX = x0*lw,
             cml = '';
         while(lw * (cml || 1) < minLw || (cml||0)%2) cml = (cml || 1) + 1;
-        this._xLabels.style['transform'] = `translateX(${lw-gX}px)`;
+        this._xLabels.style['transform'] = `translateX(${-gX}px)`;
         [].slice.call(this._xLabels.getElementsByTagName('text') || [])
             .map((e, i) => {
-                e.style['transform'] = `translateX(${lw * i - normLw * i}px)`;
+                e.style['transform'] = `translateX(${lw * i - this._lw * i}px)`;
                 if (cml && !e.classList.contains('ml' + cml))
                     e.style['opacity'] = 0;
                 else
@@ -283,6 +346,10 @@ class TSeries {
         this.load(data);
     };
 
+    get ozd() {
+        let l = this.lines()[0];
+        return [l._offset, l._zoom, l._data.length / this._graph._width];
+    }
     yLabels(min = null, max = null) {
         let o = this._lines[0]._offset,
             z = this._lines[0]._zoom;
@@ -298,18 +365,22 @@ class TSeries {
         return g;
     }
 
-    xLabels() {
-        let lw = 80, // this._graph._width *  this._graph._width/ ((this._graph._wndW||1) * this._labels.length),
-            off = 30,
-            st = this._labels.length / this._graph._width,
-            x0 = this._graph._wndX,
-            x1 = (this._graph._wndX + this._graph._wndW),
-            stl = this._graph._wndW * this._labels.length / (this._graph._width * this._graph._width),
-            g = _nes('g'),
-            formatter = new Intl.DateTimeFormat("en", {
+    _lbl(i, f = null) {
+        f = f || this._labelsFormat;
+        let lbl = this._labels[i];
+        if (f === 'timestamp:day') {
+            let formatter = new Intl.DateTimeFormat("en", {
                 month: "short",
                 day: "numeric"
-            }),
+            });
+            return formatter.format((new Date(+lbl)));
+        }
+        if (f === "wmd") return (new Date(+lbl)).toDateString().replace(/(^[^\s]+)(.*)?\s[^\s]+$/, '$1,$2');
+
+        return lbl;
+    }
+    xLabels() {
+        let g = _nes('g'),
             oCls = (ln) => {
                let ml = [];
                for(let j=2; j<=ln; j++)
@@ -318,11 +389,8 @@ class TSeries {
             };
         g.style['transition'] = '0.5s';
         for (let x=0; x < this._labels.length; x++) {
-            let lbl = this._labels[x], cls = oCls(x);
-            if (this._labelsFormat === 'timestamp:day') {
-                lbl = formatter.format((new Date(+lbl)));
-            }
-            g.innerHTML += `<text class="${cls}" text-anchor="middle" x="${x*lw}" y="${this._graph._height - 10}" style="transition: 0.5s;fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
+            let lbl = this._lbl(x), cls = oCls(x);
+            g.innerHTML += `<text class="${cls}" text-anchor="middle" x="${x*this._graph._lw}" y="${this._graph._height - 10}" style="transition: 0.5s;fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
         }
         return g;
     }
@@ -333,9 +401,8 @@ class TSeries {
         this._lines = data.columns.filter(s => s[0] !== data.types.x)
             .map((s) => {
                 let l = (data.names && data.names[s[0]]) || '',
-                    c = (data.colors && data.colors[s[0]]) || 'black',
-                    tl = new TLine(this._graph, s[0], l, c, s.slice(1));
-                return tl;
+                    c = (data.colors && data.colors[s[0]]) || 'black';
+                return new TLine(this._graph, s[0], l, c, s.slice(1));
             });
         this._labels.shift();
         this.rescale();
