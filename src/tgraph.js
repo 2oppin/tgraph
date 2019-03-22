@@ -12,7 +12,7 @@ class TGraph {
         this._wndX = -10;
         this._wndW = 100;
         this._cl = black
-            ? ['rgba(85, 92, 101, 0.586)', 'rgba(219, 229, 236, 0.06)', '#ddeaf3d9', '#445365', '#e3e3e3', '#242f3e', '#263241', '#fff', '#202b3a', '#304052']
+            ? ['rgba(85, 92, 101, 0.586)', 'rgba(219, 229, 236, 0.06)', '#ddeaf3d9', 'rgb(210, 231, 255)', '#e3e3e3', '#242f3e', '#263241', '#fff', '#202b3a', '#304052']
             : ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff', '#fff', '#000', '#e3e3e3', '#e7edf1'];
 
         this._showPt = true;
@@ -133,7 +133,7 @@ class TGraph {
         rect.style.fill = this._cl[6];
 
         ln.style.stroke = this._cl[3];
-        ln.style.strokeWidth = "2px";
+        ln.style.strokeWidth = "1px";
         ["y1","x1", "x2"].map(a => ln.setAttribute(a,0));
         ln.setAttribute("y2",this._height);
         ln.setAttribute("vector-effect", "non-scaling-stroke");
@@ -176,7 +176,7 @@ class TGraph {
                     x = p.x * d,
                     x1 = Math.floor(x),
                     x2 = x1 + 1;
-                this._Pt.style.transform = `translateX(${p.x}px) scaleX(${1/sc})`;
+                this._Pt.setAttribute("transform", `translate(${p.x} 0) scale(${1/sc} 1)`);
                 let ii = 0,
                     Ys = [];
                 this._series._lines.map((l, i) => {
@@ -306,7 +306,8 @@ class TGraph {
             [p0, sc] = this._scp,
             x1 = this._x1 * d,
             x2 = this._x2 * d;
-        this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
+        //this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
+        this._mainGraph.setAttribute('transform', "translate("+(- p0*sc)+" 0) scale("+sc+" 1)");
         this.updLabelsX(x1, x2);
         this._series.rescale(x1, x2);
         this.updLabelsY(o / z, this._mgHeight / z);
@@ -472,8 +473,10 @@ class TLine {
     rescale(off, z) {
         this._offset = off;
         this._zoom = z;
-        if (this._el)
-            this._el.style['transform'] = `translateY(${this._graph._mgHeight + this._offset*this._zoom}px) scaleY(-${this._zoom})`;
+        if (this._el) {
+            // this._el.style['transform'] = `translateY(${this._graph._mgHeight + this._offset * this._zoom}px) scaleY(-${this._zoom})`;
+            this._el.setAttribute('transform', `translate(0 ${this._graph._mgHeight + this._offset * this._zoom}) scale(1 -${this._zoom})`);
+        }
     }
 
     toggle() {
