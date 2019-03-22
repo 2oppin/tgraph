@@ -12,17 +12,18 @@ class TGraph {
         this._wndX = -10;
         this._wndW = 100;
         this._cl = black
-            ? ['rgba(85, 92, 101, 0.586)', 'rgba(219, 229, 236, 0.06)', '#ddeaf3d9', 'rgb(210, 231, 255)', '#e3e3e3', '#242f3e', '#263241', '#fff', '#202b3a', '#304052']
+            ? ['rgba(85, 92, 101, 0.586)', 'rgba(219, 229, 236, 0.06)', '#ddeaf360', 'rgb(210, 231, 255)', '#e3e3e3', '#242f3e', '#263241', '#fff', '#202b3a', '#304052']
             : ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff', '#fff', '#000', '#e3e3e3', '#e7edf1'];
 
         this._showPt = true;
         this._wndAct = false;
         this._el = el;
         this._el.style.backgroundColor = this._cl[5];
+        this._el.style.padding = this._wndBw+"px";
         let sz = this._el.getBoundingClientRect();
         if (!sz.width) return;
 
-        this._width = sz.width;
+        this._width = sz.width - 2 * this._wndBw;
         this._height = sz.height - this._pheight - this._bheight;
         this._series = new TSeries(this, data);
         this.init();
@@ -107,6 +108,7 @@ class TGraph {
     _PtDraw() {
         this._Pt = _nes("g");
         let ln = _nes("line"),
+            grect = _nes("g"),
             rect = _nes("rect"),
             lblX = _nes("text"),
             lblY = [],
@@ -114,8 +116,10 @@ class TGraph {
             circs = [];
         this._Pt.style.opacity = 0;
         this._Pt.appendChild(ln);
-        this._Pt.appendChild(rect);
+        this._Pt.appendChild(grect);
         this._Pt.appendChild(lblX);
+        grect.style = 'transition:0.5s';
+        rect.style = `stroke:${this._cl[8]};stroke-width:2px;fill:${this._cl[6]}`;
         rect.setAttribute("x", "-40px");
         rect.setAttribute("rx", "15px");
         rect.setAttribute("ry", "15px");
@@ -127,10 +131,8 @@ class TGraph {
         lblX.setAttribute("shape-rendering", "optimizeSpeed");
         lblX.style = `fill:${this._cl[7]}`;
         lblX.innerHTML = "There whould be label";
-
-        rect.style.stroke = this._cl[8];
-        rect.style.strokeWidth = "2px";
-        rect.style.fill = this._cl[6];
+        grect.appendChild(rect);
+        grect.appendChild(lblX);
 
         ln.style.stroke = this._cl[3];
         ln.style.strokeWidth = "1px";
@@ -155,14 +157,14 @@ class TGraph {
             lby.setAttribute("text-anchor", "middle");
             lby.setAttribute("dominant-baseline", "middle");
             lby.style = `fill: ${l._color}`;
-            this._Pt.appendChild(lby);
+            grect.appendChild(lby);
             lblY.push(lby);
             let lbyl = lby.cloneNode();
             lbyl.style.fontSize = '12px';
             lbyl.setAttribute("y", "60");
             lbyl.innerHTML = l._name;
             lblYl.push(lbyl);
-            this._Pt.appendChild(lbyl);
+            grect.appendChild(lbyl);
         });
         this._mainGraph.appendChild(this._Pt);
         let sp = this._svg.createSVGPoint(),
@@ -198,9 +200,17 @@ class TGraph {
                     rw = Math.max(140, ii * 80);
                 do {
                     int = Ys.reduce((a, y) => a && (y < b[0] || y > b[1]), false);
-                } while(int && (b = b.map(_ => _+50))[1] < this._mgHeight);
+                } while(!int && (b = b.map(_ => _+50))[1] < this._mgHeight);
                 if(b[1] < this._mgHeight) b = [25, 105];
 
+                let _o=0;
+                    for (let y of Ys)
+                        while (y>_o && y<_o+80 && _o<this._mgHeight)
+                            _o+=50;
+                if (_o>=this._mgHeight) _o = 0;
+                grect.style.transform = `translateY(${_o}px)`;
+
+                //grect.style.transform = `translateY(${b[0]-25}px)`;
                 rect.setAttribute("width", rw);
                 lblX.setAttribute("x", rw / 2 - 40);
                 lblX.innerHTML = this._series._lbl(x1, "wmd");
@@ -233,10 +243,12 @@ class TGraph {
                 if (this._wndAct === 'move') {
                     this._wndX = Math.min(Math.max(-this._wndBw,newPos), this._width - this._wndW - this._wndBw);
                 } else if (this._wndAct === 'right') {
-                    this._wndW = Math.min(Math.max(0,cliX - this._wndX - 2 * this._wndBw), this._width);
+                    this._wndW = Math.min(Math.max(this._wndBw,cliX - this._wndX - 2 * this._wndBw), this._width -this._wndX - this._wndBw);
                 } else if (this._wndAct === 'left') {
-                    this._wndW = Math.min(Math.max(0,this._wndW + (this._wndX - newPos)), this._width);
-                    this._wndX = Math.min(Math.max(-this._wndBw,newPos), this._width - 2 * this._wndBw);
+                    let nx = Math.max(-this._wndBw,newPos),
+                        mx = this._wndX + this._wndW - this._wndBw;
+                    this._wndW = Math.max(this._wndBw, this._wndW + this._wndX - nx);
+                    this._wndX = Math.min(nx, mx);
                 }
             },
             mm = (e) => {
@@ -276,7 +288,7 @@ class TGraph {
 
 
     wndUpd() {
-        this._wndL.style['left'] = (0) + 'px';
+        this._wndL.style['left'] = -this._wndBw + 'px';
         this._wndL.style['width'] = this._wndX + this._wndBw + 'px';
 
         this._wnd.style['left'] = (this._wndX) + 'px';
@@ -329,7 +341,8 @@ class TGraph {
         this._xLabels.style['transform'] = `translateX(${-gX}px)`;
         [].slice.call(this._xLabels.getElementsByTagName('text') || [])
             .map((e, i) => {
-                e.style['transform'] = `translateX(${lw * i - this._lw * i}px)`;
+                let dx = this._wndX < 0 && !i ? 30 : lw * i - this._lw * i;
+                e.style['transform'] = `translateX(${dx}px)`;
                 if (cml && !e.classList.contains('ml' + cml))
                     e.style['opacity'] = 0;
                 else
