@@ -12,13 +12,11 @@ class TGraph {
         this._wndX = -10;
         this._wndW = 100;
         this._cl = black
-            ? ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#3f4f5f', '#e3e3e3', '#242f3e']
-            : ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff'];
+            ? ['rgba(85, 92, 101, 0.586)', 'rgba(219, 229, 236, 0.06)', '#ddeaf3d9', '#445365', '#e3e3e3', '#242f3e', '#263241', '#fff', '#202b3a', '#304052']
+            : ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff', '#fff', '#000', '#e3e3e3', '#e7edf1'];
 
         this._showPt = true;
-        this._wndAct = false; // false || [move, left, right]
-
-        this._id = Math.round(Math.random() * 1000) + (new Date()).getTime();
+        this._wndAct = false;
         this._el = el;
         this._el.style.backgroundColor = this._cl[5];
         let sz = this._el.getBoundingClientRect();
@@ -47,13 +45,7 @@ class TGraph {
         d.appendChild(s);
         this._el.appendChild(d);
         this._wndL = d.cloneNode();
-        this._wndL.style['padding-left'] = 0;
-        this._wndL.style['position'] = 'absolute';
-        this._wndL.style['top'] = '0';
-        this._wndL.style['height'] = this._pheight + 'px';
-        this._wndL.style['left'] = 0;
-        this._wndL.style['width'] = 0;
-        this._wndL.style['background-color'] = this._cl[0];// 'rgba(210, 217, 220, 0.55)';
+        this._wndL.style = `position:absolute;top:0;height:${this._pheight}px;left:0;width:0;background-color:${this._cl[0]};padding-left:0;`;
         d.appendChild(this._wndL);
         this._wndR = this._wndL.cloneNode();
         this._wndR.style['left'] = (this._wndX + this._wndW) + 'px';
@@ -95,14 +87,14 @@ class TGraph {
             l.toggle();
             let s = e.target.getElementsByTagName('span').item(0);
             s.innerHTML = l._enabled ? "&#x2713;" : '';
-            s.style.backgroundColor = l._enabled ? l._color : 'white';
+            s.style.backgroundColor = l._enabled ? l._color : this._cl[5];
             this.wndUpd();
         };
         for (let l of this._series.lines()) {
             let b = _ne('div');
             b.className = 'btn-graph';
-            b.style = 'cursor: pointer; float: left;padding: 3px;border-radius: 16px;border:solid 1px #ddd;margin: 15px;height: 32px;line-height: 32px;text-align: center;min-width: 70px;';
-            b.innerHTML = '<span style="pointer-events: none;display:inline-block;width: 20px;height: 20px;font-size:22px;line-height: 20px;background-color:'+l._color+';border:solid 2px '+l._color+';border-radius: 11px;color:white;margin: 5px;float: left;">&#x2713;</span>' + l._name;
+            b.style = `color:${this._cl[7]};cursor:pointer;float:left;padding:3px;border-radius:17px;border:solid 2px ${this._cl[9]};background-color:${this._cl[6]};margin:15px;height:32px;line-height:32px;text-align:center;min-width:70px;`;
+            b.innerHTML = `<span style="pointer-events:none;display:inline-block;width:20px;height:18px;font-size:22px;line-height:20px;background-color:${l._color};border:solid 2px ${l._color};border-radius:11px;color:white;margin:5px;float:left;">&#x2713;</span>${l._name}`;
             this._buttons.appendChild(b);
             b.addEventListener('click', clk(l));
         }
@@ -117,7 +109,6 @@ class TGraph {
         let ln = _nes("line"),
             rect = _nes("rect"),
             lblX = _nes("text"),
-            rw = Math.max(140, this._series._lines.length * 80),
             lblY = [],
             lblYl = [],
             circs = [];
@@ -134,14 +125,14 @@ class TGraph {
         lblX.setAttribute("y", "25");
         lblX.setAttribute("vector-effect", "non-scaling-stroke");
         lblX.setAttribute("shape-rendering", "optimizeSpeed");
-        lblX.style = `fill:#000`;
+        lblX.style = `fill:${this._cl[7]}`;
         lblX.innerHTML = "There whould be label";
 
-        rect.style.stroke = this._cl[4];
+        rect.style.stroke = this._cl[8];
         rect.style.strokeWidth = "2px";
-        rect.style.fill = "#fff";
+        rect.style.fill = this._cl[6];
 
-        ln.style.stroke = "#e7ecf1";
+        ln.style.stroke = this._cl[3];
         ln.style.strokeWidth = "2px";
         ["y1","x1", "x2"].map(a => ln.setAttribute(a,0));
         ln.setAttribute("y2",this._height);
@@ -153,7 +144,7 @@ class TGraph {
             c.setAttribute("r", 4);
             c.setAttribute("vector-effect", "non-scaling-stroke");
             c.style.stroke = l._color;
-            c.style.fill = "#fff";
+            c.style.fill = this._cl[5];
             this._Pt.appendChild(c);
             circs.push(c);
 
@@ -198,12 +189,18 @@ class TGraph {
                         y = y1 - (y2 - y1) * (x1 - x),
                         py = this._mgHeight - (y-o)*z;
                         circs[i].setAttribute("cy", py);
-                        Ys.push(y);
+                        Ys.push(py);
                     lblY[i].innerHTML = Math.floor(y);
                     lblY[i].setAttribute("x", 80*ii);
                     lblYl[i].setAttribute("x", 80*ii++);
                 });
-                let rw = Math.max(140, ii * 80);
+                let b = [25, 105],int = true,
+                    rw = Math.max(140, ii * 80);
+                do {
+                    int = Ys.reduce((a, y) => a && (y < b[0] || y > b[1]), false);
+                } while(int && (b = b.map(_ => _+50))[1] < this._mgHeight);
+                if(b[1] < this._mgHeight) b = [25, 105];
+
                 rect.setAttribute("width", rw);
                 lblX.setAttribute("x", rw / 2 - 40);
                 lblX.innerHTML = this._series._lbl(x1, "wmd");
