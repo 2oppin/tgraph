@@ -3,21 +3,24 @@ let _ne = (t) => document.createElement(t);
 let _nes = (t) => document.createElementNS("http://www.w3.org/2000/svg", t);
 let _mm = (arr) => {let a = arr.slice(0).sort((a,b)=>a-b); return [a[0], a.pop()];};
 class TGraph {
-    constructor(el, data, preview = true) {
+    constructor(el, data, black = false) {
         this._lw = 80;
         this._pheight = 100;
         this._bheight = 100;
         this._aheight = 30;
-        this._buttonsArr = [];
         this._wndBw = 10;
         this._wndX = -10;
         this._wndW = 100;
+        this._cl = black
+            ? ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#3f4f5f', '#e3e3e3', '#242f3e']
+            : ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff'];
 
         this._showPt = true;
         this._wndAct = false; // false || [move, left, right]
 
         this._id = Math.round(Math.random() * 1000) + (new Date()).getTime();
         this._el = el;
+        this._el.style.backgroundColor = this._cl[5];
         let sz = this._el.getBoundingClientRect();
         if (!sz.width) return;
 
@@ -50,7 +53,7 @@ class TGraph {
         this._wndL.style['height'] = this._pheight + 'px';
         this._wndL.style['left'] = 0;
         this._wndL.style['width'] = 0;
-        this._wndL.style['background-color'] = 'rgba(210, 217, 220, 0.55)';
+        this._wndL.style['background-color'] = this._cl[0];// 'rgba(210, 217, 220, 0.55)';
         d.appendChild(this._wndL);
         this._wndR = this._wndL.cloneNode();
         this._wndR.style['left'] = (this._wndX + this._wndW) + 'px';
@@ -60,11 +63,11 @@ class TGraph {
         this._wnd.style['cursor'] = 'move';
         this._wnd.style['height'] = (this._pheight -6) + 'px';
         this._wnd.style['width'] = this._wndW + 'px';
-        this._wnd.style['border'] = 'solid 3px rgba(180, 190, 195, 0.51)';
+        this._wnd.style['border'] = 'solid 3px ' + this._cl[2];
         this._wnd.style['border-left-width'] = this._wndBw + 'px';
         this._wnd.style['border-right-width'] = this._wndBw + 'px';
         this._wnd.style['border-radius'] = '3px';
-        this._wnd.style['background-color'] = 'rgba(227, 237, 243, 0.21)';
+        this._wnd.style['background-color'] = this._cl[1];//'rgba(227, 237, 243, 0.21)';
         d.appendChild(this._wnd);
 
         this._mainGraph = _nes('g');
@@ -102,7 +105,6 @@ class TGraph {
             b.innerHTML = '<span style="pointer-events: none;display:inline-block;width: 20px;height: 20px;font-size:22px;line-height: 20px;background-color:'+l._color+';border:solid 2px '+l._color+';border-radius: 11px;color:white;margin: 5px;float: left;">&#x2713;</span>' + l._name;
             this._buttons.appendChild(b);
             b.addEventListener('click', clk(l));
-            //b.addEventListener('touchstart', clk(l));
         }
         this._el.appendChild(this._buttons);
         this.wndUpd(30, 100);
@@ -135,12 +137,12 @@ class TGraph {
         lblX.style = `fill:#000`;
         lblX.innerHTML = "There whould be label";
 
-        rect.style.stroke = "#e7ecf1";
-        rect.style.strokeWidth = "1px";
+        rect.style.stroke = this._cl[4];
+        rect.style.strokeWidth = "2px";
         rect.style.fill = "#fff";
 
         ln.style.stroke = "#e7ecf1";
-        ln.style.strokeWidth = "1px";
+        ln.style.strokeWidth = "2px";
         ["y1","x1", "x2"].map(a => ln.setAttribute(a,0));
         ln.setAttribute("y2",this._height);
         ln.setAttribute("vector-effect", "non-scaling-stroke");
@@ -359,11 +361,11 @@ class TSeries {
         let g = _nes('g');
         g.style['transition'] = '0.5s';
         for (let i=this._graph._mgHeight; i >=0; i -= 50) {
-            g.innerHTML += `<line x1="0" y1="${i}" x2="${this._graph._width}" y2="${i}" style="stroke:#ddd;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed />`;
+            g.innerHTML += `<line x1="0" y1="${i}" x2="${this._graph._width}" y2="${i}" style="stroke:${this._graph._cl[3]};opacity:0.5;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed />`;
         }
         if (this.lines().filter(l => l._enabled).length)
             for (let i=this._graph._mgHeight - 1, j=0; i >=0; i -= 50, j++) {
-                g.innerHTML += `<text x="10" y="${i-10}" style="fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${Math.round(o + j*50/z)}</text>`;
+                g.innerHTML += `<text x="10" y="${i-10}" style="fill:${this._graph._cl[3]};font-size:14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${Math.round(o + j*50/z)}</text>`;
             }
         return g;
     }
@@ -393,7 +395,7 @@ class TSeries {
         g.style['transition'] = '0.5s';
         for (let x=0; x < this._labels.length; x++) {
             let lbl = this._lbl(x), cls = oCls(x);
-            g.innerHTML += `<text class="${cls}" text-anchor="middle" x="${x*this._graph._lw}" y="${this._graph._height - 10}" style="transition: 0.5s;fill: #888;font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
+            g.innerHTML += `<text class="${cls}" text-anchor="middle" x="${x*this._graph._lw}" y="${this._graph._height - 10}" style="transition: 0.5s;fill: ${this._graph._cl[3]};font-size: 14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${lbl}</text>`;
         }
         return g;
     }

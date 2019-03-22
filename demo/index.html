@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Demo</title>
-    <script src="../dist/tgraph-min.js"></script>
+    <script src="../src/tgraph.js"></script>
 
     <style>
         .graph:nth-child(even) {
@@ -30,7 +30,7 @@
     <script type="text/javascript" src="chart_data.json"></script>
     <script>
         loadJSON('chart_data.json', (data) =>
-            data.map((d, i) => new TGraph(document.getElementById("g" + i), d))
+            data.map((d, i) => new TGraph(document.getElementById("g" + i), d, !i%2))
         );
 
         function loadJSON(file, callback) {
