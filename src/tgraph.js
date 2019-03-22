@@ -3,34 +3,19 @@ let _ne = (t) => document.createElement(t);
 let _nes = (t) => document.createElementNS("http://www.w3.org/2000/svg", t);
 let _mm = (arr) => {let a = arr.slice(0).sort((a,b)=>a-b); return [a[0], a.pop()];};
 class TGraph {
-    _id = null;
-    _width = 100;
-    _height = 100;
-    _el = null;
-    _svg = null;
-    _mainGraph = null;
-    _previewGraph = null;
-    _yLabels = null;
-    _xLabels = null;
-    _lw = 80;
-    _pheight = 100;
-    _bheight = 100;
-    _aheight = 30;
-    _series = null;
-    _wndL = null;
-    _wndR = null;
-    _wnd = null;
-    _buttons = null;
-    _buttonsArr = [];
-    _wndBw = 10;
-    _wndX = -10;
-    _wndW = 100;
-
-    _showPt = true;
-    _Pt = null;
-    _wndAct = false; // false || [move, left, right]
-
     constructor(el, data, preview = true) {
+        this._lw = 80;
+        this._pheight = 100;
+        this._bheight = 100;
+        this._aheight = 30;
+        this._buttonsArr = [];
+        this._wndBw = 10;
+        this._wndX = -10;
+        this._wndW = 100;
+
+        this._showPt = true;
+        this._wndAct = false; // false || [move, left, right]
+
         this._id = Math.round(Math.random() * 1000) + (new Date()).getTime();
         this._el = el;
         let sz = this._el.getBoundingClientRect();
@@ -353,12 +338,12 @@ class TGraph {
     }
 }
 class TSeries {
-    _graph = null;
-    _labelsFormat = 'timestamp:day';
-    _labels = [];
-    _lines = [];
-    _zoom = 1;
     constructor(g, data = {}) {
+        this._labelsFormat = 'timestamp:day';
+        this._labels = [];
+        this._lines = [];
+        this._zoom = 1;
+
         this._graph = g;
         if (!TSeries.validateData(data)) return;
         this.load(data);
@@ -454,19 +439,11 @@ class TSeries {
 }
 
 class TLine {
-    _el = null;
-    _graph;
-    _step;
-    _name;
-    _label;
-    _color;
-    _data;
-    _min;
-    _max;
-    _enabled = true;
-    _zoom = 1;
-    _offset = 0;
     constructor(g, n, l, c, d, z = 0) {
+        this._el = null;
+        this._enabled = true;
+        this._zoom = 1;
+        this._offset = 0;
         this._graph = g;
         this._name = n; this._label = l; this._color = c;
         [this._min, this._max] = _mm(d);
