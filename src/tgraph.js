@@ -1,9 +1,15 @@
+let _ta = (e) => [].slice.apply(e);
 let _et = (e) => e.touches && e.touches.length;
 let _ne = (t) => document.createElement(t);
 let _nes = (t) => document.createElementNS("http://www.w3.org/2000/svg", t);
 let _mm = (arr) => {let a = arr.slice(0).sort((a,b)=>a-b); return [a[0], a.pop()];};
 class TGraph {
     constructor(el, data, black = false) {
+        this._el = el;
+        let sz = this._el.getBoundingClientRect(),
+            w = Math.max(sz.width, 200),
+            h = Math.max(sz.height, 300);
+
         this._black = black;
         this._lw = 80;
         this._pheight = 100;
@@ -15,25 +21,28 @@ class TGraph {
 
         this._showPt = true;
         this._wndAct = false;
-        this._el = el;
         this._el.style.backgroundColor = this._cl[5];
         this._el.style.padding = this._wndBw+"px";
-        let sz = this._el.getBoundingClientRect();
-        if (!sz.width) return;
-
-        this._width = sz.width - 2 * this._wndBw;
-        this._height = sz.height - this._pheight - this._bheight;
+        this._el.style.width = w + "px";
+        this._el.style.overflow = 'hidden';
+        this._width = w - 2 * this._wndBw;
+        this._height = h - this._pheight - this._bheight;
         this._series = new TSeries(this, data);
         this.init();
     }
     setMode(black) {
-        console.log("Mode Set: ", black);
         this._black = black;
+        this._el.style.backgroundColor = this._cl[5];
+        [this._wndL, this._wndR].map(e => e.style.backgroundColor = this._cl[0]);
+        this._wnd.style.borderColor = this._cl[2];
+        this._wnd.style.backgroundColor = this._cl[1];
+        this._btDraw();
+        this._Pt.style.opacity = 0;
     }
     get _cl() {
         return this._black
             ? ['rgba(85, 92, 101, 0.586)', 'rgba(219, 229, 236, 0.06)', '#ddeaf360', 'rgb(210, 231, 255)', '#e3e3e3', '#242f3e', '#263241', '#fff', '#202b3a', '#304052']
-            : ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff', '#fff', '#000', '#e3e3e3', '#e7edf1'];
+            : ['rgba(221, 230, 243, 0.386)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff', '#fff', '#000', '#e3e3e3', '#e7edf1'];
     }
     get _mgHeight() {
         return this._height - this._aheight;
@@ -42,14 +51,15 @@ class TGraph {
     init() {
         this._svg = _nes('svg');
         this._svg.setAttribute('height', this._height);
+        this._svg.setAttribute('width', this._width);
         this._el.appendChild(this._svg);
 
-        this._previewGraph = _nes('g');
+        this._pvwG = _nes('g');
         let d = _ne('div'), s = _nes('svg');
         s.setAttribute('height', '100');
         d.style['position'] = 'relative';
         d.style['height'] = this._pheight + 'px';
-        s.appendChild(this._previewGraph);
+        s.appendChild(this._pvwG);
         d.appendChild(s);
         this._el.appendChild(d);
         this._wndL = d.cloneNode();
@@ -64,32 +74,40 @@ class TGraph {
         this._wnd.style['height'] = (this._pheight -6) + 'px';
         this._wnd.style['width'] = this._wndW + 'px';
         this._wnd.style['border'] = 'solid 3px ' + this._cl[2];
+        this._wnd.style['background-color'] = this._cl[1];
         this._wnd.style['border-left-width'] = this._wndBw + 'px';
         this._wnd.style['border-right-width'] = this._wndBw + 'px';
         this._wnd.style['border-radius'] = '3px';
-        this._wnd.style['background-color'] = this._cl[1];//'rgba(227, 237, 243, 0.21)';
         d.appendChild(this._wnd);
 
-        this._mainGraph = _nes('g');
-        this._mainGraph.style['transition'] = '0.5s';
+        this._G = _nes('g');
+        this._G.style['transition'] = '0.5s';
 
         this._wndInitEvents();
 
-        this._series.lines().map(l => {
-            this._mainGraph.appendChild(l.el);
-            this._previewGraph.appendChild(l.el.cloneNode());
+        this._series._lines.map(l => {
+            this._G.appendChild(l.el);
+            this._pvwG.appendChild(l.el.cloneNode());
         });
-        this._mainGraph.childNodes.forEach(e => e.style['stroke-width'] = 2);
-        this._previewGraph.style['transform'] = "scaleY("+(+this._pheight/this._height)+")";
+        this._G.childNodes.forEach(e => e.style['stroke-width'] = 2);
+        this._pvwG.style['transform'] = "scaleY("+(+this._pheight/this._height)+")";
 
         this._xLabels = this._series.xLabels();
         this._yLabels = this._series.yLabels();
 
         this._svg.appendChild(this._xLabels);
         this._svg.appendChild(this._yLabels);
-        this._svg.appendChild(this._mainGraph);
+        this._svg.appendChild(this._G);
 
         this._buttons = _ne('div');
+        this._btDraw();
+        this._el.appendChild(this._buttons);
+        this.wndUpd(30, 100);
+
+        if (this._showPt) this._PtDraw();
+    }
+    _btDraw() {
+        this._buttons.innerHTML = "";
         let clk = (l) => (e) => {
             this._Pt.style.opacity = 0;
             l.toggle();
@@ -98,19 +116,16 @@ class TGraph {
             s.style.backgroundColor = l._enabled ? l._color : this._cl[5];
             this.wndUpd();
         };
-        for (let l of this._series.lines()) {
+        for (let l of this._series._lines) {
             let b = _ne('div');
             b.className = 'btn-graph';
-            b.style = `color:${this._cl[7]};cursor:pointer;float:left;padding:3px;border-radius:17px;border:solid 2px ${this._cl[9]};background-color:${this._cl[6]};margin:15px;height:32px;line-height:32px;text-align:center;min-width:70px;`;
-            b.innerHTML = `<span style="pointer-events:none;display:inline-block;width:20px;height:18px;font-size:22px;line-height:20px;background-color:${l._color};border:solid 2px ${l._color};border-radius:11px;color:white;margin:5px;float:left;">&#x2713;</span>${l._name}`;
+            b.style = `color:${this._cl[7]};cursor:pointer;float:left;padding:3px;border-radius:17px;border:solid 2px ${this._cl[9]};background-color:${this._cl[6]};margin:15px;height:33px;line-height:33px;text-align:center;min-width:70px;`;
+            b.innerHTML = `<span style="pointer-events:none;display:inline-block;width:20px;height:20px;font-size:22px;line-height:22px;background-color:${l._color};border:solid 2px ${l._color};border-radius:11px;color:white;margin:5px;float:left;">&#x2713;</span>${l._name}`;
             this._buttons.appendChild(b);
             b.addEventListener('click', clk(l));
         }
-        this._el.appendChild(this._buttons);
-        this.wndUpd(30, 100);
-
-        if (this._showPt) this._PtDraw();
     }
+
 
     _PtDraw() {
         this._Pt = _nes("g");
@@ -126,7 +141,6 @@ class TGraph {
         this._Pt.appendChild(grect);
         this._Pt.appendChild(lblX);
         grect.style = 'transition:0.5s';
-        rect.style = `stroke:${this._cl[8]};stroke-width:2px;fill:${this._cl[6]}`;
         rect.setAttribute("x", "-40px");
         rect.setAttribute("rx", "15px");
         rect.setAttribute("ry", "15px");
@@ -136,16 +150,19 @@ class TGraph {
         lblX.setAttribute("y", "25");
         lblX.setAttribute("vector-effect", "non-scaling-stroke");
         lblX.setAttribute("shape-rendering", "optimizeSpeed");
-        lblX.style = `fill:${this._cl[7]}`;
         lblX.innerHTML = "There whould be label";
         grect.appendChild(rect);
         grect.appendChild(lblX);
 
-        ln.style.stroke = this._cl[3];
         ln.style.strokeWidth = "1px";
         ["y1","x1", "x2"].map(a => ln.setAttribute(a,0));
         ln.setAttribute("y2",this._height);
         ln.setAttribute("vector-effect", "non-scaling-stroke");
+        let _initC = () => {
+            rect.style = `stroke:${this._cl[8]};stroke-width:2px;fill:${this._cl[6]}`;
+            ln.style.stroke = this._cl[3];
+            lblX.style = `fill:${this._cl[7]}`;
+        };
         this._series._lines.map((l, i) => {
             let c = _nes("circle"),
                 lby = _nes("text"),
@@ -173,17 +190,17 @@ class TGraph {
             lblYl.push(lbyl);
             grect.appendChild(lbyl);
         });
-        this._mainGraph.appendChild(this._Pt);
+        this._G.appendChild(this._Pt);
         let sp = this._svg.createSVGPoint(),
-            _RAF       = true,
+            _RAF = true,
             pt = (e) => {
                 let cli = _et(e) ? e.touches[0] : e;
                 sp.x = cli.clientX; sp.y = cli.clientY;
                 let [o, z, d] = this._series.ozd,
                     [, sc] = this._scp,
-                    p = sp.matrixTransform( this._mainGraph.getScreenCTM().inverse()),
+                    p = sp.matrixTransform( this._G.getScreenCTM().inverse()),
                     x = p.x * d,
-                    x1 = Math.floor(x),
+                    x1 = Math.max(0, Math.floor(x)),
                     x2 = x1 + 1;
                 this._Pt.setAttribute("transform", `translate(${p.x} 0) scale(${1/sc} 1)`);
                 let ii = 0,
@@ -212,7 +229,7 @@ class TGraph {
                 lblX.innerHTML = this._series._lbl(x1, "wmd");
             },
             mm = (e) => {
-                if (!_et(e)) e.preventDefault();
+                e.preventDefault();
                 if (_RAF) _RAF =  requestAnimationFrame(() => (_RAF = true) && pt(e)) && false;
             },
             mu = (e) => {
@@ -220,6 +237,7 @@ class TGraph {
             },
             md = (e) => {
                 pt(e);
+                _initC();
                 this._Pt.style.opacity = 1;
                 this._svg.addEventListener(_et(e) ? "touchmove" : "mousemove", mm);
                 this._svg.addEventListener(_et(e) ? "touchend" : "mouseup", mu, {once: true});
@@ -281,7 +299,6 @@ class TGraph {
         this._wnd.addEventListener('touchstart', md, false);
     }
 
-
     wndUpd() {
         this._wndL.style['left'] = -this._wndBw + 'px';
         this._wndL.style['width'] = this._wndX + this._wndBw + 'px';
@@ -313,21 +330,36 @@ class TGraph {
             [p0, sc] = this._scp,
             x1 = this._x1 * d,
             x2 = this._x2 * d;
-        //this._mainGraph.style['transform'] = "translateX("+(- p0*sc)+"px) scaleX("+sc+")";
-        this._mainGraph.setAttribute('transform', "translate("+(- p0*sc)+" 0) scale("+sc+" 1)");
+        this._G.setAttribute('transform', "translate("+(- p0*sc)+" 0) scale("+sc+" 1)");
         this.updLabelsX(x1, x2);
         this._series.rescale(x1, x2);
         this.updLabelsY(o / z, this._mgHeight / z);
     }
 
-    updLabelsY(min, max) {
-        this._yLabels.innerHTML = "";
-        this._yLabels.appendChild(this._series.yLabels(min, max));
+    updLabelsY() {
+        this._yUpd = (this._yUpd || 0)+1;
+        if (this._yUpd > 1) {
+            if (this._yUpdt) clearTimeout(this._yUpdt);
+            return this._yUpdt = setTimeout(() => {this._yUpd = 0;this.updLabelsY();}, 120);
+        }
+        let pr = _ta(this._yLabels.getElementsByTagName('text')).map(t=>+t.innerHTML),
+            [o] = this._series.ozd,
+            mv = (el,o,y,t) => _ta(el.getElementsByTagName('text')).map((e, i) => {
+                e.style['transform'] = `translateY(${y(i)}px)`;
+                e.style['opacity'] = o;
+                if(t) e.style['transition'] = t;
+            }),
+            nw = this._series.yLabels(),
+            nn = _ta(nw.getElementsByTagName('text')).map(t=>+t.innerHTML);
+        mv(nw,0.5,(i) => ((n) => n>0 ? 50 : n &&-50 )(pr[i]-nn[i]),'0.5s');
+        this._yLabels.innerHTML = '';
+        this._yLabels.appendChild(nw);
+        setTimeout(() => mv(nw,1,()=>0), 20);
     }
 
     updLabelsX(x0, x1) {
         let minLw = 50,
-            l = this._series.lines()[0],
+            l = this._series._lines[0],
             [,sc] = this._scp,
             lw = l._step * sc,
             gX = x0*lw,
@@ -347,7 +379,7 @@ class TGraph {
 }
 class TSeries {
     constructor(g, data = {}) {
-        this._labelsFormat = 'timestamp:day';
+        this._labelsFormat = 'md';
         this._labels = [];
         this._lines = [];
         this._zoom = 1;
@@ -358,7 +390,7 @@ class TSeries {
     };
 
     get ozd() {
-        let l = this.lines()[0];
+        let l = this._lines[0];
         return [l._offset, l._zoom, l._data.length / this._graph._width];
     }
     yLabels() {
@@ -369,7 +401,7 @@ class TSeries {
         for (let i=this._graph._mgHeight; i >=0; i -= 50) {
             g.innerHTML += `<line x1="0" y1="${i}" x2="${this._graph._width}" y2="${i}" style="stroke:${this._graph._cl[3]};opacity:0.5;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed />`;
         }
-        if (this.lines().filter(l => l._enabled).length)
+        if (this._lines.filter(l => l._enabled).length)
             for (let i=this._graph._mgHeight - 1, j=0; i >=0; i -= 50, j++) {
                 g.innerHTML += `<text x="10" y="${i-10}" style="fill:${this._graph._cl[3]};font-size:14px;" vector-effect="non-scaling-stroke" shape-rendering=optimizeSpeed>${Math.round(o + j*50/z)}</text>`;
             }
@@ -379,11 +411,8 @@ class TSeries {
     _lbl(i, f = null) {
         f = f || this._labelsFormat;
         let lbl = this._labels[i];
-        if (f === 'timestamp:day') {
-            let formatter = new Intl.DateTimeFormat("en", {
-                month: "short",
-                day: "numeric"
-            });
+        if (f === 'md') {
+            let formatter = new Intl.DateTimeFormat("en", {month: "short", day: "numeric"});
             return formatter.format((new Date(+lbl)));
         }
         if (f === "wmd") return (new Date(+lbl)).toDateString().replace(/(^[^\s]+)(.*)?\s[^\s]+$/, '$1,$2');
@@ -427,12 +456,8 @@ class TSeries {
             return [Math.min(mn, a[0]),Math.max(mx, a[1])];
         },[1/0,-1/0]);
         let z = this._graph._mgHeight / (MX - MN), o = MN;
-        for (let l of this.lines())
+        for (let l of this._lines)
             l.rescale(o, z);
-    }
-
-    lines() {
-        return this._lines;
     }
 
     static validateData(data) {
@@ -458,11 +483,9 @@ class TLine {
         this._zoom = z || this._max / this._graph._mgHeight;
         this._data = d;
     }
-
     mnmx(x0, x1) {
         return _mm(this._data.slice(x0, x1));
     }
-
     get el() {
         if (this._el) return this._el;
 
@@ -477,19 +500,14 @@ class TLine {
 
         return this._el;
     }
-
     rescale(off, z) {
         this._offset = off;
         this._zoom = z;
-        if (this._el) {
-            // this._el.style['transform'] = `translateY(${this._graph._mgHeight + this._offset * this._zoom}px) scaleY(-${this._zoom})`;
+        if (this._el)
             this._el.setAttribute('transform', `translate(0 ${this._graph._mgHeight + this._offset * this._zoom}) scale(1 -${this._zoom})`);
-        }
     }
-
     toggle() {
         this._enabled = !this._enabled;
         this._el.style['opacity'] = this._enabled ? 1 : 0;
     }
-
 }

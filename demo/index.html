@@ -43,10 +43,11 @@
     <script>
         let g = [], b = false;
         loadJSON('chart_data.json', (data) =>
-            data.map((d, i) => g.push(new TGraph(document.getElementById("g" + i), d, !(i%2))))
+            data.map((d, i) => g.push(new TGraph(document.getElementById("g" + i), d)))//, !(i%2))))
         );
         document.getElementById('switch').addEventListener('click',() => {
-            g.map(_g => _g.setMode(b=!b));
+            b=!b;
+            g.map(_g => _g.setMode(b));
         })
         function loadJSON(file, callback) {
             let xobj = new XMLHttpRequest();
