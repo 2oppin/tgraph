@@ -158,11 +158,6 @@ class TGraph {
         ["y1","x1", "x2"].map(a => ln.setAttribute(a,0));
         ln.setAttribute("y2",this._height);
         ln.setAttribute("vector-effect", "non-scaling-stroke");
-        let _initC = () => {
-            rect.style = `stroke:${this._cl[8]};stroke-width:2px;fill:${this._cl[6]}`;
-            ln.style.stroke = this._cl[3];
-            lblX.style = `fill:${this._cl[7]}`;
-        };
         this._series._lines.map((l, i) => {
             let c = _nes("circle"),
                 lby = _nes("text"),
@@ -170,7 +165,6 @@ class TGraph {
             c.setAttribute("r", 4);
             c.setAttribute("vector-effect", "non-scaling-stroke");
             c.style.stroke = l._color;
-            c.style.fill = this._cl[5];
             this._Pt.appendChild(c);
             circs.push(c);
 
@@ -190,6 +184,12 @@ class TGraph {
             lblYl.push(lbyl);
             grect.appendChild(lbyl);
         });
+        let _initC = () => {
+            rect.style = `stroke:${this._cl[8]};stroke-width:2px;fill:${this._cl[6]}`;
+            ln.style.stroke = this._cl[3];
+            lblX.style = `fill:${this._cl[7]}`;
+            circs.map(c => c.style.fill = this._cl[5]);
+        };
         this._G.appendChild(this._Pt);
         let sp = this._svg.createSVGPoint(),
             _RAF = true,

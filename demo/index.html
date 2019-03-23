@@ -10,9 +10,6 @@
         body {
             margin-bottom: 50px;
         }
-        .graph:nth-child(even) {
-            background-color: black;
-        }
         .graph {
             width: 100%;
             min-height: 600px;
@@ -39,7 +36,6 @@
     <div id="g2" class="graph"></div>
     <div id="g3" class="graph"></div>
     <div id="g4" class="graph"></div>
-    <script type="text/javascript" src="chart_data.json"></script>
     <script>
         let g = [], b = false;
         loadJSON('chart_data.json', (data) =>
