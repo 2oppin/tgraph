@@ -4,6 +4,7 @@ let _nes = (t) => document.createElementNS("http://www.w3.org/2000/svg", t);
 let _mm = (arr) => {let a = arr.slice(0).sort((a,b)=>a-b); return [a[0], a.pop()];};
 class TGraph {
     constructor(el, data, black = false) {
+        this._black = black;
         this._lw = 80;
         this._pheight = 100;
         this._bheight = 100;
@@ -11,9 +12,6 @@ class TGraph {
         this._wndBw = 10;
         this._wndX = -10;
         this._wndW = 100;
-        this._cl = black
-            ? ['rgba(85, 92, 101, 0.586)', 'rgba(219, 229, 236, 0.06)', '#ddeaf360', 'rgb(210, 231, 255)', '#e3e3e3', '#242f3e', '#263241', '#fff', '#202b3a', '#304052']
-            : ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff', '#fff', '#000', '#e3e3e3', '#e7edf1'];
 
         this._showPt = true;
         this._wndAct = false;
@@ -27,6 +25,15 @@ class TGraph {
         this._height = sz.height - this._pheight - this._bheight;
         this._series = new TSeries(this, data);
         this.init();
+    }
+    setMode(black) {
+        console.log("Mode Set: ", black);
+        this._black = black;
+    }
+    get _cl() {
+        return this._black
+            ? ['rgba(85, 92, 101, 0.586)', 'rgba(219, 229, 236, 0.06)', '#ddeaf360', 'rgb(210, 231, 255)', '#e3e3e3', '#242f3e', '#263241', '#fff', '#202b3a', '#304052']
+            : ['rgba(221, 230, 243, 0.586)', '#ddeaf329', '#ddeaf3d9', '#9aa6ae', '#e3e3e3', '#fff', '#fff', '#000', '#e3e3e3', '#e7edf1'];
     }
     get _mgHeight() {
         return this._height - this._aheight;
@@ -196,21 +203,10 @@ class TGraph {
                     lblY[i].setAttribute("x", 80*ii);
                     lblYl[i].setAttribute("x", 80*ii++);
                 });
-                let b = [25, 105],int = true,
-                    rw = Math.max(140, ii * 80);
-                do {
-                    int = Ys.reduce((a, y) => a && (y < b[0] || y > b[1]), false);
-                } while(!int && (b = b.map(_ => _+50))[1] < this._mgHeight);
-                if(b[1] < this._mgHeight) b = [25, 105];
-
-                let _o=0;
-                    for (let y of Ys)
-                        while (y>_o && y<_o+80 && _o<this._mgHeight)
-                            _o+=50;
-                if (_o>=this._mgHeight) _o = 0;
+                let rw = Math.max(140, ii * 80);
+                let _o = Math.min(this._mgHeight, Ys.reduce((_o,y) => y>_o && y<_o+80 ? (y+50 -y%50) : _o, 0));
                 grect.style.transform = `translateY(${_o}px)`;
 
-                //grect.style.transform = `translateY(${b[0]-25}px)`;
                 rect.setAttribute("width", rw);
                 lblX.setAttribute("x", rw / 2 - 40);
                 lblX.innerHTML = this._series._lbl(x1, "wmd");
@@ -268,10 +264,9 @@ class TGraph {
                 e.preventDefault();
                 if (this._Pt) this._Pt.style.opacity = 0;
                 currentPosition = this._wndX;
-                // startPosition   = e.clientX;
                 startPosition = _et(e) ? e.touches[0].clientX : e.clientX;
 
-                let dx = startPosition - this._wndX - 2 * this._wndBw;
+                let dx = startPosition - this._wndX - 3*this._wndBw;
                 this._wnd.style.cursor='col-resize';
                 this._wndAct = dx < 0 ? "left" : (dx > (this._wndW) ? "right" : "move");
 
@@ -366,7 +361,7 @@ class TSeries {
         let l = this.lines()[0];
         return [l._offset, l._zoom, l._data.length / this._graph._width];
     }
-    yLabels(min = null, max = null) {
+    yLabels() {
         let o = this._lines[0]._offset,
             z = this._lines[0]._zoom;
         let g = _nes('g');

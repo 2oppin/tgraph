@@ -7,6 +7,9 @@
     <script src="../src/tgraph.js"></script>
 
     <style>
+        body {
+            margin-bottom: 50px;
+        }
         .graph:nth-child(even) {
             background-color: black;
         }
@@ -17,9 +20,20 @@
         .graph svg {
             width: 100%;
         }
+        #switch {
+            bottom: 0;
+            position: fixed;
+            height: 50px;
+            line-height: 50px;
+            text-align: center;
+            width: 100%;
+            background: #ccc;
+            z-index: 10000;
+        }
     </style>
 </head>
 <body>
+    <div id="switch">TOGGLE BLACK/WHITE</div>
     <div id="g0" class="graph"></div>
     <div id="g1" class="graph"></div>
     <div id="g2" class="graph"></div>
@@ -27,10 +41,13 @@
     <div id="g4" class="graph"></div>
     <script type="text/javascript" src="chart_data.json"></script>
     <script>
+        let g = [], b = false;
         loadJSON('chart_data.json', (data) =>
-            data.map((d, i) => new TGraph(document.getElementById("g" + i), d, !(i%2)))
+            data.map((d, i) => g.push(new TGraph(document.getElementById("g" + i), d, !(i%2))))
         );
-
+        document.getElementById('switch').addEventListener('click',() => {
+            g.map(_g => _g.setMode(b=!b));
+        })
         function loadJSON(file, callback) {
             let xobj = new XMLHttpRequest();
             xobj.overrideMimeType("application/json");
