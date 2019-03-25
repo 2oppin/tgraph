@@ -120,7 +120,7 @@ class TGraph {
             let b = _ne('div');
             b.className = 'btn-graph';
             b.style = `color:${this._cl[7]};cursor:pointer;float:left;padding:3px;border-radius:17px;border:solid 2px ${this._cl[9]};background-color:${this._cl[6]};margin:15px;height:33px;line-height:33px;text-align:center;min-width:70px;`;
-            b.innerHTML = `<span style="pointer-events:none;display:inline-block;width:20px;height:20px;font-size:22px;line-height:22px;background-color:${l._color};border:solid 2px ${l._color};border-radius:11px;color:white;margin:5px;float:left;">&#x2713;</span>${l._name}`;
+            b.innerHTML = `<span style="pointer-events:none;display:inline-block;width:20px;height:20px;font-size:22px;line-height:22px;background-color:${l._color};border:solid 2px ${l._color};border-radius:11px;color:white;margin:5px;float:left;">&#x2713;</span>${l._label}`;
             this._buttons.appendChild(b);
             b.addEventListener('click', clk(l));
         }
@@ -180,7 +180,7 @@ class TGraph {
             let lbyl = lby.cloneNode();
             lbyl.style.fontSize = '12px';
             lbyl.setAttribute("y", "60");
-            lbyl.innerHTML = l._name;
+            lbyl.innerHTML = l._label;
             lblYl.push(lbyl);
             grect.appendChild(lbyl);
         });
